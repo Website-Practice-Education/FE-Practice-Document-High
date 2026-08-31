@@ -1,0 +1,9 @@
+# Render.com Static Site Configuration
+# https://render.com/docs/static-sites
+
+services:
+  - type: web
+    name: studyhub-frontend
+    env: static
+    buildCommand: npm run build
+    staticPublishPath: dist
