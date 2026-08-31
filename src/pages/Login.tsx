@@ -17,6 +17,8 @@ export default function Login({ onLoginSuccess }: LoginProps) {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const googleClientId = (import.meta.env.VITE_GOOGLE_CLIENT_ID || '').trim();
+  const hasGoogleClient = !!googleClientId && googleClientId !== 'YOUR_GOOGLE_CLIENT_ID';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -149,15 +151,21 @@ export default function Login({ onLoginSuccess }: LoginProps) {
               </div>
             </div>
 
-            <GoogleLogin
-              onSuccess={handleGoogleSuccess}
-              onError={handleGoogleError}
-              useOneTap
-              theme={isDark ? 'filled_black' : 'outline'}
-              size="large"
-              shape="rectangular"
-              width="100%"
-            />
+            {hasGoogleClient ? (
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={handleGoogleError}
+                useOneTap
+                theme={isDark ? 'filled_black' : 'outline'}
+                size="large"
+                shape="rectangular"
+                width="100%"
+              />
+            ) : (
+              <div className={`rounded-xl border px-4 py-3 text-center text-sm ${isDark ? 'border-slate-700 bg-slate-900/40 text-slate-400' : 'border-slate-200 bg-slate-50 text-slate-500'}`}>
+                Google login chưa được cấu hình.
+              </div>
+            )}
 
             <button
               type="submit"

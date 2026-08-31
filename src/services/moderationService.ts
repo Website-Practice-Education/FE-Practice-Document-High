@@ -1,12 +1,22 @@
 import api from './api';
 import { SharedDocument } from '../types';
 
-// Helper to normalize array responses from backend
 const normalizeArray = (data: any): any[] => {
   if (Array.isArray(data)) return data;
-  if (data?.data) return Array.isArray(data.data) ? data.data : [data.data];
-  if (data?.items) return data.items;
+  if (Array.isArray(data?.items)) return data.items;
+  if (Array.isArray(data?.data)) return data.data;
+  if (Array.isArray(data?.documents)) return data.documents;
+  if (data && typeof data === 'object') return [data];
   return [];
+};
+
+const getPayload = (data: any) => {
+  if (!data || typeof data !== 'object') return { items: [], pagination: {} };
+  const nested = data.data ?? data;
+  return {
+    items: normalizeArray(nested),
+    pagination: nested?.pagination ?? data?.pagination ?? {}
+  };
 };
 
 const moderationService = {
@@ -15,7 +25,11 @@ const moderationService = {
     const response = await api.get('/moderation/pending', {
       params: { page, pageSize }
     });
-    return response.data;
+    const payload = getPayload(response.data);
+    return {
+      data: payload.items,
+      pagination: payload.pagination
+    };
   },
 
   // Get documents by status
@@ -23,7 +37,11 @@ const moderationService = {
     const response = await api.get('/moderation/documents', {
       params: { status, page, pageSize }
     });
-    return response.data;
+    const payload = getPayload(response.data);
+    return {
+      data: payload.items,
+      pagination: payload.pagination
+    };
   },
 
   // Get all documents for moderation (all statuses)
@@ -31,7 +49,11 @@ const moderationService = {
     const response = await api.get('/moderation/documents', {
       params: { page, pageSize }
     });
-    return response.data;
+    const payload = getPayload(response.data);
+    return {
+      data: payload.items,
+      pagination: payload.pagination
+    };
   },
 
   // Get pending count

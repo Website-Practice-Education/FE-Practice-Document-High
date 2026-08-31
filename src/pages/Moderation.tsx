@@ -47,11 +47,21 @@ export default function Moderation() {
         response = await moderationService.getDocumentsByStatus(activeTab, pagination.currentPage, pagination.pageSize);
       }
 
-      setDocuments(response.data);
+      const normalizedDocuments = Array.isArray(response?.data)
+        ? response.data
+        : Array.isArray(response?.data?.items)
+          ? response.data.items
+          : Array.isArray(response?.data?.data)
+            ? response.data.data
+            : Array.isArray(response?.data?.documents)
+              ? response.data.documents
+              : [];
+
+      setDocuments(normalizedDocuments);
       setPagination(prev => ({
         ...prev,
-        totalItems: response.pagination?.totalItems || 0,
-        totalPages: response.pagination?.totalPages || 1
+        totalItems: Number(response?.pagination?.totalItems ?? response?.data?.pagination?.totalItems ?? normalizedDocuments.length ?? 0),
+        totalPages: Number(response?.pagination?.totalPages ?? response?.data?.pagination?.totalPages ?? 1)
       }));
     } catch (err: any) {
       console.error('Error fetching documents:', err);
