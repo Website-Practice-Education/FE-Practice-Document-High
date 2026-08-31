@@ -32,38 +32,38 @@ export default function UserForm({ user, onSave, onCancel }: UserFormProps) {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
-      <h2 className="text-xl font-semibold mb-4">
+    <div className="form-card animate-scale-in">
+      <h2 className="text-xl font-bold mb-5 font-[family-name:var(--font-display)] text-slate-800">
         {user ? 'Edit User' : 'Add New User'}
       </h2>
       <form onSubmit={handleSubmit}>
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+          <label className="form-label">Email</label>
           <input
             type="email"
             value={formData.email}
             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="input-field"
             required
             disabled={!!user}
           />
         </div>
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+          <label className="form-label">Full Name</label>
           <input
             type="text"
             value={formData.fullName}
             onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="input-field"
           />
         </div>
         <div className="grid grid-cols-2 gap-4 mb-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+            <label className="form-label">Role</label>
             <select
               value={formData.role}
               onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="input-field"
             >
               <option value="student">Student</option>
               <option value="teacher">Teacher</option>
@@ -71,14 +71,14 @@ export default function UserForm({ user, onSave, onCancel }: UserFormProps) {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Grade</label>
+            <label className="form-label">Grade</label>
             <input
               type="number"
               min="1"
               max="12"
               value={formData.grade}
               onChange={(e) => setFormData({ ...formData, grade: Number(e.target.value) })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="input-field"
             />
           </div>
         </div>
@@ -92,20 +92,9 @@ export default function UserForm({ user, onSave, onCancel }: UserFormProps) {
           />
           <label htmlFor="isActive" className="ml-2 text-sm text-gray-700">Active</label>
         </div>
-        <div className="flex gap-2">
-          <button
-            type="submit"
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            Save
-          </button>
-          <button
-            type="button"
-            onClick={onCancel}
-            className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500"
-          >
-            Cancel
-          </button>
+        <div className="flex gap-3 mt-6">
+          <button type="submit" className="btn-primary">Lưu</button>
+          <button type="button" onClick={onCancel} className="btn-secondary">Hủy</button>
         </div>
       </form>
     </div>

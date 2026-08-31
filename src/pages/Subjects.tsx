@@ -27,7 +27,7 @@ export default function Subjects() {
   };
 
   const handleDelete = async (id: number) => {
-    if (window.confirm('Are you sure you want to delete this subject?')) {
+    if (window.confirm('Bạn có chắc muốn xóa môn học này?')) {
       try {
         await SubjectService.delete(id);
         loadSubjects();
@@ -53,24 +53,24 @@ export default function Subjects() {
     setShowForm(true);
   };
 
-  if (loading) return <Loading />;
+  if (loading) return <Loading message="Đang tải môn học..." />;
 
   return (
     <div>
-      <Breadcrumb items={[{ label: 'Subjects' }]} />
-      
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Subjects Management</h1>
-        <button
-          onClick={handleAdd}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-        >
-          Add Subject
+      <Breadcrumb items={[{ label: 'Môn học' }]} />
+
+      <div className="flex justify-between items-center mb-8 animate-fade-in-down">
+        <div className="page-header !mb-0">
+          <h1 className="page-title">Quản lý Môn học</h1>
+          <p className="page-subtitle">Thêm, sửa và quản lý các môn học</p>
+        </div>
+        <button onClick={handleAdd} className="btn-primary">
+          + Thêm môn học
         </button>
       </div>
 
       {showForm ? (
-        <div className="mb-6">
+        <div className="mb-6 animate-scale-in">
           <SubjectForm
             subject={editingSubject}
             onSave={handleSave}
@@ -81,69 +81,46 @@ export default function Subjects() {
           />
         </div>
       ) : (
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+        <div className="data-table-wrapper animate-fade-in-up">
+          <table>
+            <thead>
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Code
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Name
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Description
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
+                <th>Mã</th>
+                <th>Tên</th>
+                <th>Mô tả</th>
+                <th>Trạng thái</th>
+                <th className="text-right">Thao tác</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody>
               {subjects.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-4 text-center text-gray-500">
-                    No subjects found
+                  <td colSpan={5} className="text-center py-12 text-slate-500">
+                    <span className="text-4xl block mb-2">📚</span>
+                    Chưa có môn học nào
                   </td>
                 </tr>
               ) : (
-                subjects.map((subject) => (
-                  <tr key={subject.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {subject.code}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {subject.name}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {subject.description || '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          subject.isActive
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-red-100 text-red-800'
-                        }`}
-                      >
-                        {subject.isActive ? 'Active' : 'Inactive'}
+                subjects.map((subject, index) => (
+                  <tr
+                    key={subject.id}
+                    className="animate-fade-in-up"
+                    style={{ animationDelay: `${index * 50}ms`, animationFillMode: 'forwards', opacity: 0 }}
+                  >
+                    <td className="font-semibold text-slate-800">{subject.code}</td>
+                    <td>{subject.name}</td>
+                    <td>{subject.description || '-'}</td>
+                    <td>
+                      <span className={`badge ${subject.isActive ? 'badge-success' : 'badge-danger'}`}>
+                        {subject.isActive ? 'Hoạt động' : 'Ngừng'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button
-                        onClick={() => handleEdit(subject)}
-                        className="text-blue-600 hover:text-blue-900 mr-4"
-                      >
-                        Edit
+                    <td className="text-right">
+                      <button onClick={() => handleEdit(subject)} className="btn-ghost text-indigo-600">
+                        Sửa
                       </button>
-                      <button
-                        onClick={() => handleDelete(subject.id)}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        Delete
+                      <button onClick={() => handleDelete(subject.id)} className="btn-danger">
+                        Xóa
                       </button>
                     </td>
                   </tr>

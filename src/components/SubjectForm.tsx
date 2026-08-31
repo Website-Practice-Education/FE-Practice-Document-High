@@ -31,37 +31,37 @@ export default function SubjectForm({ subject, onSave, onCancel }: SubjectFormPr
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
-      <h2 className="text-xl font-semibold mb-4">
+    <div className="form-card animate-scale-in">
+      <h2 className="text-xl font-bold mb-5 font-[family-name:var(--font-display)] text-slate-800">
         {subject ? 'Edit Subject' : 'Add New Subject'}
       </h2>
       <form onSubmit={handleSubmit}>
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Code</label>
+          <label className="form-label">Code</label>
           <input
             type="text"
             value={formData.code}
             onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="input-field"
             required
           />
         </div>
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+          <label className="form-label">Name</label>
           <input
             type="text"
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="input-field"
             required
           />
         </div>
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+          <label className="form-label">Description</label>
           <textarea
             value={formData.description}
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="input-field"
             rows={3}
           />
         </div>
@@ -75,20 +75,9 @@ export default function SubjectForm({ subject, onSave, onCancel }: SubjectFormPr
           />
           <label htmlFor="isActive" className="ml-2 text-sm text-gray-700">Active</label>
         </div>
-        <div className="flex gap-2">
-          <button
-            type="submit"
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            Save
-          </button>
-          <button
-            type="button"
-            onClick={onCancel}
-            className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500"
-          >
-            Cancel
-          </button>
+        <div className="flex gap-3 mt-6">
+          <button type="submit" className="btn-primary">Lưu</button>
+          <button type="button" onClick={onCancel} className="btn-secondary">Hủy</button>
         </div>
       </form>
     </div>

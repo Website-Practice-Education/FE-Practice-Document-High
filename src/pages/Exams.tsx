@@ -6,6 +6,13 @@ import Breadcrumb from '../components/Breadcrumb';
 import ExamForm from '../components/ExamForm';
 import Loading from '../components/Loading';
 
+const examTypeConfig: Record<string, { label: string; className: string; symbol: string }> = {
+  final: { label: 'Cuối kỳ', className: 'badge-danger', symbol: 'F' },
+  midterm: { label: 'Giữa kỳ', className: 'bg-amber-100 text-amber-700 px-2.5 py-0.5 rounded-full text-xs font-semibold', symbol: 'M' },
+  quiz: { label: 'Kiểm tra', className: 'badge-info', symbol: 'Q' },
+  practice: { label: 'Luyện tập', className: 'badge-success', symbol: 'P' },
+};
+
 export default function Exams() {
   const [exams, setExams] = useState<Exam[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -35,7 +42,7 @@ export default function Exams() {
   };
 
   const handleDelete = async (id: number) => {
-    if (window.confirm('Are you sure you want to delete this exam?')) {
+    if (window.confirm('Bạn có chắc muốn xóa đề thi này?')) {
       try {
         await ExamService.delete(id);
         loadData();
@@ -67,156 +74,115 @@ export default function Exams() {
     return true;
   });
 
-  const getExamTypeColor = (type?: string) => {
-    switch (type) {
-      case 'final':
-        return 'bg-red-100 text-red-800';
-      case 'midterm':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'quiz':
-        return 'bg-blue-100 text-blue-800';
-      default:
-        return 'bg-green-100 text-green-800';
-    }
+  const getExamType = (type?: string) => {
+    return examTypeConfig[type || 'practice'] || examTypeConfig.practice;
   };
 
-  if (loading) return <Loading />;
+  if (loading) return <Loading message="Đang tải đề thi..." />;
 
   return (
     <div>
-      <Breadcrumb items={[{ label: 'Exams' }]} />
+      <Breadcrumb items={[{ label: 'Đề thi' }]} />
 
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Exams Management</h1>
-        <button
-          onClick={handleAdd}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-        >
-          Create Exam
-        </button>
+      <div className="flex justify-between items-center mb-8 animate-fade-in-down">
+        <div className="page-header !mb-0">
+          <h1 className="page-title">Quản lý Đề thi</h1>
+          <p className="page-subtitle">Tạo và quản lý các đề thi, bài kiểm tra</p>
+        </div>
+        <button onClick={handleAdd} className="btn-primary">+ Tạo đề thi</button>
       </div>
 
-      {/* Filters */}
-      <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-        <div className="flex flex-wrap gap-4">
-          <select
-            value={filterSubject}
-            onChange={(e) => setFilterSubject(e.target.value ? Number(e.target.value) : '')}
-            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">All Subjects</option>
-            {subjects.map((subject) => (
-              <option key={subject.id} value={subject.id}>
-                {subject.name}
-              </option>
-            ))}
+      <div className="filter-bar">
+        <div className="min-w-[180px]">
+          <label className="form-label">Môn học</label>
+          <select value={filterSubject} onChange={(e) => setFilterSubject(e.target.value ? Number(e.target.value) : '')} className="input-field">
+            <option value="">Tất cả</option>
+            {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
-          <select
-            value={filterType}
-            onChange={(e) => setFilterType(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">All Types</option>
-            <option value="practice">Practice</option>
-            <option value="quiz">Quiz</option>
-            <option value="midterm">Midterm</option>
-            <option value="final">Final</option>
-          </select>
-          <button
-            onClick={() => {
-              setFilterSubject('');
-              setFilterType('');
-            }}
-            className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
-          >
-            Clear
-          </button>
         </div>
+        <div className="min-w-[160px]">
+          <label className="form-label">Loại đề</label>
+          <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className="input-field">
+            <option value="">Tất cả</option>
+            <option value="practice">Luyện tập</option>
+            <option value="quiz">Kiểm tra</option>
+            <option value="midterm">Giữa kỳ</option>
+            <option value="final">Cuối kỳ</option>
+          </select>
+        </div>
+        <button onClick={() => { setFilterSubject(''); setFilterType(''); }} className="btn-secondary self-end">
+          Xóa bộ lọc
+        </button>
       </div>
 
       {showForm ? (
         <div className="mb-6">
-          <ExamForm
-            exam={editingExam}
-            onSave={handleSave}
-            onCancel={() => {
-              setShowForm(false);
-              setEditingExam(undefined);
-            }}
-          />
+          <ExamForm exam={editingExam} onSave={handleSave} onCancel={() => { setShowForm(false); setEditingExam(undefined); }} />
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredExams.length === 0 ? (
-            <div className="col-span-full bg-white rounded-lg shadow-md p-8 text-center text-gray-500">
-              No exams found. Create your first exam to get started.
+            <div className="col-span-full glass-card rounded-2xl p-12 text-center animate-scale-in">
+              <div className="empty-symbol">E</div>
+              <p className="text-lg font-semibold text-slate-700 mb-2">Chưa có đề thi nào</p>
+              <p className="text-slate-500">Tạo đề thi đầu tiên để bắt đầu</p>
             </div>
           ) : (
-            filteredExams.map((exam) => (
-              <div key={exam.id} className="bg-white rounded-lg shadow-md overflow-hidden">
-                <div className="p-6">
-                  <div className="flex justify-between items-start mb-4">
-                    <h3 className="text-lg font-semibold text-gray-800">{exam.title}</h3>
-                    <span
-                      className={`px-2 py-1 text-xs font-semibold rounded-full ${getExamTypeColor(exam.examType)}`}
-                    >
-                      {exam.examType || 'practice'}
-                    </span>
+            filteredExams.map((exam, index) => {
+              const typeInfo = getExamType(exam.examType);
+              return (
+                <div
+                  key={exam.id}
+                  className={`exam-card animate-fade-in-up stagger-${(index % 6) + 1}`}
+                  style={{ animationFillMode: 'forwards', opacity: 0 }}
+                >
+                  <div className="p-6">
+                    <div className="flex justify-between items-start mb-3">
+                      <h3 className="text-lg font-bold text-slate-800 font-[family-name:var(--font-display)] leading-tight">
+                        {exam.title}
+                      </h3>
+                      <span className={typeInfo.className}>
+                        <span className="font-bold mr-1">{typeInfo.symbol}</span>
+                        {typeInfo.label}
+                      </span>
+                    </div>
+                    <p className="text-slate-500 text-sm mb-5 line-clamp-2">
+                      {exam.description || 'Chưa có mô tả'}
+                    </p>
+                    <div className="space-y-2.5 text-sm text-slate-600">
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">Môn học</span>
+                        <span className="font-medium">{subjects.find((s) => s.id === exam.subjectId)?.name || 'Chưa chọn'}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">Thời gian</span>
+                        <span className="font-medium">{exam.durationMinutes || 60} phút</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">Câu hỏi</span>
+                        <span className="font-medium">{exam.totalQuestions || 0}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">Năm</span>
+                        <span className="font-medium">{exam.year || new Date().getFullYear()}</span>
+                      </div>
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-slate-100 flex flex-wrap gap-2">
+                      <span className={`badge ${exam.isTimed ? 'badge-success' : ''}`}>
+                        {exam.isTimed ? 'Có giới hạn' : 'Không giới hạn'}
+                      </span>
+                      <span className={`badge ${exam.isPublic ? 'badge-info' : ''}`}>
+                        {exam.isPublic ? 'Công khai' : 'Riêng tư'}
+                      </span>
+                    </div>
                   </div>
-                  <p className="text-gray-500 text-sm mb-4">
-                    {exam.description || 'No description'}
-                  </p>
-                  <div className="space-y-2 text-sm text-gray-600">
-                    <div className="flex items-center">
-                      <span className="mr-2">📚</span>
-                      {subjects.find((s) => s.id === exam.subjectId)?.name || 'No subject'}
-                    </div>
-                    <div className="flex items-center">
-                      <span className="mr-2">⏱️</span>
-                      {exam.durationMinutes || 60} minutes
-                    </div>
-                    <div className="flex items-center">
-                      <span className="mr-2">❓</span>
-                      {exam.totalQuestions || 0} questions
-                    </div>
-                    <div className="flex items-center">
-                      <span className="mr-2">📅</span>
-                      {exam.year || new Date().getFullYear()}
-                    </div>
-                  </div>
-                  <div className="mt-4 pt-4 border-t border-gray-200 flex flex-wrap gap-2">
-                    <span
-                      className={`px-2 py-1 text-xs rounded ${
-                        exam.isTimed ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                      }`}
-                    >
-                      {exam.isTimed ? '⏱️ Timed' : '⏸️ Untimed'}
-                    </span>
-                    <span
-                      className={`px-2 py-1 text-xs rounded ${
-                        exam.isPublic ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
-                      }`}
-                    >
-                      {exam.isPublic ? '🌐 Public' : '🔒 Private'}
-                    </span>
+                  <div className="px-6 py-3 border-t border-slate-100 flex justify-end gap-2 bg-slate-50/50">
+                    <button onClick={() => handleEdit(exam)} className="btn-primary !px-3 !py-1.5 !text-xs">Sửa</button>
+                    <button onClick={() => handleDelete(exam.id)} className="btn-danger !px-3 !py-1.5 !text-xs bg-red-50 rounded-lg">Xóa</button>
                   </div>
                 </div>
-                <div className="px-6 py-3 bg-gray-50 border-t border-gray-200 flex justify-end gap-2">
-                  <button
-                    onClick={() => handleEdit(exam)}
-                    className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(exam.id)}
-                    className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       )}

@@ -1,5 +1,5 @@
 import api from './api';
-import type { User } from '../types';
+import type { User, ForgotPasswordRequest, ResetPasswordRequest, PasswordResetResponse } from '../types';
 
 export const UserService = {
   getAll: async (): Promise<User[]> => {
@@ -86,6 +86,20 @@ export const UserService = {
 
   deleteMultiple: async (userIds: number[]): Promise<{ successCount: number; failedCount: number }> => {
     const response = await api.post('/users/delete-multiple', { userIds });
+    return response.data;
+  },
+
+  // Password Reset
+  forgotPassword: async (email: string): Promise<PasswordResetResponse> => {
+    const response = await api.post<PasswordResetResponse>('/users/forgot-password', { email } as ForgotPasswordRequest);
+    return response.data;
+  },
+
+  resetPassword: async (token: string, newPassword: string): Promise<PasswordResetResponse> => {
+    const response = await api.post<PasswordResetResponse>('/users/reset-password', {
+      token,
+      newPassword
+    } as ResetPasswordRequest);
     return response.data;
   },
 };

@@ -30,9 +30,20 @@ export interface SpaceMember {
   joinedAt: string;
 }
 
+export interface UpdateSpaceRequest {
+  name?: string;
+  description?: string;
+  spaceType?: string;
+}
+
 export const studySpaceService = {
   getMySpaces: async (): Promise<StudySpace[]> => {
     const response = await api.get(`${BASE_URL}`);
+    return response.data.data;
+  },
+
+  getMyCreatedSpaces: async (): Promise<StudySpace[]> => {
+    const response = await api.get(`${BASE_URL}/my-created`);
     return response.data.data;
   },
 
@@ -48,6 +59,11 @@ export const studySpaceService = {
 
   createSpace: async (data: CreateSpaceRequest): Promise<StudySpace> => {
     const response = await api.post(BASE_URL, data);
+    return response.data.data;
+  },
+
+  updateSpace: async (id: number, data: UpdateSpaceRequest): Promise<StudySpace> => {
+    const response = await api.put(`${BASE_URL}/${id}`, data);
     return response.data.data;
   },
 

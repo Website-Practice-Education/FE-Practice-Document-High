@@ -77,3 +77,110 @@ export interface DashboardStats {
   exams: number;
   users: number;
 }
+
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ResetPasswordRequest {
+  token: string;
+  newPassword: string;
+}
+
+export interface PasswordResetResponse {
+  message: string;
+  email?: string;
+  token?: string;
+}
+
+export interface SharedDocument {
+  id: number;
+  title: string;
+  description?: string;
+  documentType: string; // "file" or "link"
+  fileUrl?: string;
+  fileType?: string;
+  fileSize?: number;
+  subjectId?: number;
+  topicId?: number;
+  questionCount?: number;
+  gradeLevel?: number;
+  linkUrl?: string;
+  linkSource?: string;
+  sharedByUserId?: number;
+  sharedByName?: string;
+  viewCount: number;
+  downloadCount: number;
+  likeCount: number;
+  isActive: boolean;
+  isVerified: boolean;
+  createdAt: string;
+  updatedAt: string;
+  subject?: Subject;
+  topic?: Topic;
+  // Moderation fields
+  moderationStatus?: 'pending' | 'approved' | 'rejected';
+  moderationNotes?: string;
+  moderatedByUserId?: number;
+  moderatedByName?: string;
+  moderatedAt?: string;
+}
+
+export interface Topic {
+  id: number;
+  subjectId: number;
+  name: string;
+  description?: string;
+  orderIndex?: number;
+  isActive?: boolean;
+  createdAt?: string;
+  parentId?: number;
+}
+
+export interface CreateDocumentRequest {
+  title: string;
+  description?: string;
+  documentType: string;
+  fileUrl?: string;
+  fileName?: string;
+  fileType?: string;
+  fileSize?: number;
+  subjectId?: number;
+  topicId?: number;
+  questionCount?: number;
+  gradeLevel?: number;
+  linkUrl?: string;
+  linkSource?: string;
+}
+
+export interface DocumentFilterRequest {
+  subjectId?: number;
+  topicId?: number;
+  minQuestionCount?: number;
+  maxQuestionCount?: number;
+  gradeLevel?: number;
+  documentType?: string;
+  keyword?: string;
+  sortBy?: string;
+  sortOrder?: string;
+  page?: number;
+  pageSize?: number;
+  moderationStatus?: string;
+}
+
+export interface DocumentPaginationResponse {
+  success: boolean;
+  data: SharedDocument[];
+  pagination: {
+    currentPage: number;
+    pageSize: number;
+    totalItems: number;
+    totalPages: number;
+  };
+}
+
+export interface ModerationStats {
+  pending: number;
+  approved: number;
+  rejected: number;
+}

@@ -1,6 +1,6 @@
 import { HubConnection, HubConnectionBuilder, HubConnectionState } from '@microsoft/signalr';
 
-const HUB_URL = 'https://localhost:5001/hubs/chat';
+const HUB_URL = import.meta.env.VITE_SIGNALR_HUB_URL_SECURE || import.meta.env.VITE_SIGNALR_HUB_URL || 'https://localhost:7007/hubs/chat';
 
 export interface ChatMessage {
   id: number;

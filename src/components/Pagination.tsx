@@ -8,23 +8,31 @@ export default function Pagination({ currentPage, totalPages, onPageChange }: Pa
   const pages = Array.from({ length: totalPages }, (_, i) => i + 1);
 
   return (
-    <div className="flex items-center justify-center gap-2 mt-6">
+    <div className="flex items-center justify-center gap-2 mt-6 animate-fade-in-up">
       <button
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
-        className="px-3 py-1 rounded bg-gray-200 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-300"
+        className="btn-secondary !px-3 !py-1.5 disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none"
       >
-        Previous
+        &lt; Prev
       </button>
       {pages.map((page) => (
         <button
           key={page}
           onClick={() => onPageChange(page)}
-          className={`px-3 py-1 rounded ${
+          className={`w-9 h-9 rounded-xl text-sm font-semibold transition-all duration-300 ${
             page === currentPage
-              ? 'bg-blue-600 text-white'
-              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              ? 'text-white shadow-lg'
+              : 'text-slate-600 hover:bg-indigo-50 hover:text-indigo-600'
           }`}
+          style={
+            page === currentPage
+              ? {
+                  background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                  boxShadow: '0 4px 12px rgba(99, 102, 241, 0.4)',
+                }
+              : undefined
+          }
         >
           {page}
         </button>
@@ -32,9 +40,9 @@ export default function Pagination({ currentPage, totalPages, onPageChange }: Pa
       <button
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
-        className="px-3 py-1 rounded bg-gray-200 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-300"
+        className="btn-secondary !px-3 !py-1.5 disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none"
       >
-        Next
+        Next &gt;
       </button>
     </div>
   );

@@ -65,17 +65,17 @@ export default function QuestionForm({ question, onSave, onCancel }: QuestionFor
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
-      <h2 className="text-xl font-semibold mb-4">
+    <div className="form-card animate-scale-in">
+      <h2 className="text-xl font-bold mb-5 font-[family-name:var(--font-display)] text-slate-800">
         {question ? 'Edit Question' : 'Add New Question'}
       </h2>
       <form onSubmit={handleSubmit}>
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
+          <label className="form-label">Subject</label>
           <select
             value={formData.subjectId}
             onChange={(e) => setFormData({ ...formData, subjectId: Number(e.target.value) })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="input-field"
             required
           >
             <option value="">Select a subject</option>
@@ -87,11 +87,11 @@ export default function QuestionForm({ question, onSave, onCancel }: QuestionFor
           </select>
         </div>
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Question Type</label>
+          <label className="form-label">Question Type</label>
           <select
             value={formData.questionType}
             onChange={(e) => setFormData({ ...formData, questionType: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="input-field"
           >
             <option value="multiple_choice">Multiple Choice</option>
             <option value="true_false">True/False</option>
@@ -99,62 +99,62 @@ export default function QuestionForm({ question, onSave, onCancel }: QuestionFor
           </select>
         </div>
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Content</label>
+          <label className="form-label">Content</label>
           <textarea
             value={formData.content}
             onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="input-field"
             rows={4}
             required
           />
         </div>
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Explanation</label>
+          <label className="form-label">Explanation</label>
           <textarea
             value={formData.explanation}
             onChange={(e) => setFormData({ ...formData, explanation: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="input-field"
             rows={2}
           />
         </div>
         <div className="grid grid-cols-2 gap-4 mb-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Difficulty (1-5)</label>
+            <label className="form-label">Difficulty (1-5)</label>
             <input
               type="number"
               min="1"
               max="5"
               value={formData.difficulty}
               onChange={(e) => setFormData({ ...formData, difficulty: Number(e.target.value) })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="input-field"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Year</label>
+            <label className="form-label">Year</label>
             <input
               type="number"
               min="2000"
               max="2100"
               value={formData.year}
               onChange={(e) => setFormData({ ...formData, year: Number(e.target.value) })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="input-field"
             />
           </div>
         </div>
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Source</label>
+          <label className="form-label">Source</label>
           <input
             type="text"
             value={formData.source}
             onChange={(e) => setFormData({ ...formData, source: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="input-field"
             placeholder="e.g., Oxford English Dictionary"
           />
         </div>
-        <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-          <h3 className="text-sm font-semibold text-blue-800 mb-3">File / Reference Link</h3>
+        <div className="form-section">
+          <h3 className="text-sm font-bold text-indigo-700 mb-3">File / Liên kết tham khảo</h3>
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Link (Drive, Dropbox, or any reference URL)</label>
+            <label className="form-label">Link (Drive, Dropbox, or any reference URL)</label>
             <input
               type="url"
               value={formData.fileUrl}
@@ -163,7 +163,7 @@ export default function QuestionForm({ question, onSave, onCancel }: QuestionFor
                 fileUrl: e.target.value,
                 fileType: getFileTypeFromUrl(e.target.value)
               })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="input-field"
               placeholder="https://drive.google.com/... or https://..."
             />
           </div>
@@ -174,17 +174,12 @@ export default function QuestionForm({ question, onSave, onCancel }: QuestionFor
                 href={formData.fileUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-blue-600 hover:text-blue-800 underline text-sm flex items-center gap-2"
+                className="text-indigo-600 hover:text-indigo-800 underline text-sm flex items-center gap-2"
               >
-                {formData.fileType === 'google_drive' && <span>📁</span>}
-                {formData.fileType === 'google_docs' && <span>📄</span>}
-                {formData.fileType === 'dropbox' && <span>📦</span>}
-                {formData.fileType === 'pdf' && <span>📕</span>}
-                {formData.fileType === 'word' && <span>📘</span>}
-                {formData.fileType === 'excel' && <span>📗</span>}
-                {formData.fileType === 'image' && <span>🖼️</span>}
-                {formData.fileType === 'link' && <span>🔗</span>}
-                View File / Reference
+                <span className="text-xs font-bold bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded uppercase">
+                  {formData.fileType || 'link'}
+                </span>
+                Xem file / tham khảo
               </a>
             </div>
           )}
@@ -199,20 +194,9 @@ export default function QuestionForm({ question, onSave, onCancel }: QuestionFor
           />
           <label htmlFor="isActive" className="ml-2 text-sm text-gray-700">Active</label>
         </div>
-        <div className="flex gap-2">
-          <button
-            type="submit"
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            Save
-          </button>
-          <button
-            type="button"
-            onClick={onCancel}
-            className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500"
-          >
-            Cancel
-          </button>
+        <div className="flex gap-3 mt-6">
+          <button type="submit" className="btn-primary">Lưu</button>
+          <button type="button" onClick={onCancel} className="btn-secondary">Hủy</button>
         </div>
       </form>
     </div>

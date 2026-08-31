@@ -6,6 +6,14 @@ import Breadcrumb from '../components/Breadcrumb';
 import QuestionForm from '../components/QuestionForm';
 import Loading from '../components/Loading';
 
+const difficultyMap: Record<number, { label: string; className: string }> = {
+  1: { label: 'Dễ', className: 'badge-success' },
+  2: { label: 'Trung bình', className: 'badge-info' },
+  3: { label: 'Khó', className: 'bg-amber-100 text-amber-700 px-2.5 py-0.5 rounded-full text-xs font-semibold' },
+  4: { label: 'Rất khó', className: 'badge-danger' },
+  5: { label: 'Chuyên gia', className: 'bg-purple-100 text-purple-700 px-2.5 py-0.5 rounded-full text-xs font-semibold' },
+};
+
 export default function Questions() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -35,7 +43,7 @@ export default function Questions() {
   };
 
   const handleDelete = async (id: number) => {
-    if (window.confirm('Are you sure you want to delete this question?')) {
+    if (window.confirm('Bạn có chắc muốn xóa câu hỏi này?')) {
       try {
         await QuestionService.delete(id);
         loadData();
@@ -65,63 +73,55 @@ export default function Questions() {
     ? questions.filter((q) => q.subjectId === filterSubject)
     : questions;
 
-  const getDifficultyLabel = (difficulty?: number) => {
-    if (!difficulty) return '-';
-    const labels = ['', 'Easy', 'Medium', 'Hard', 'Very Hard', 'Expert'];
-    return labels[difficulty] || difficulty;
+  const getDifficulty = (difficulty?: number) => {
+    if (!difficulty) return { label: '-', className: 'badge' };
+    return difficultyMap[difficulty] || { label: String(difficulty), className: 'badge' };
   };
 
-  const getDifficultyColor = (difficulty?: number) => {
-    if (!difficulty) return 'gray';
-    const colors = ['', 'green', 'yellow', 'orange', 'red', 'purple'];
-    return colors[difficulty] || 'gray';
-  };
-
-  const getFileTypeIcon = (fileType?: string) => {
+  const getFileTypeLabel = (fileType?: string) => {
     switch (fileType) {
-      case 'google_drive': return '📁';
-      case 'google_docs': return '📄';
-      case 'dropbox': return '📦';
-      case 'pdf': return '📕';
-      case 'word': return '📘';
-      case 'excel': return '📗';
-      case 'image': return '🖼️';
-      default: return '🔗';
+      case 'google_drive': return 'Drive';
+      case 'google_docs': return 'Docs';
+      case 'dropbox': return 'Dropbox';
+      case 'pdf': return 'PDF';
+      case 'word': return 'Word';
+      case 'excel': return 'Excel';
+      case 'image': return 'IMG';
+      default: return 'Link';
     }
   };
 
-  if (loading) return <Loading />;
+  if (loading) return <Loading message="Đang tải câu hỏi..." />;
 
   return (
     <div>
-      <Breadcrumb items={[{ label: 'Questions' }]} />
+      <Breadcrumb items={[{ label: 'Câu hỏi' }]} />
 
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Questions Management</h1>
-        <button
-          onClick={handleAdd}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-        >
-          Add Question
-        </button>
+      <div className="flex justify-between items-center mb-8 animate-fade-in-down">
+        <div className="page-header !mb-0">
+          <h1 className="page-title">Quản lý Câu hỏi</h1>
+          <p className="page-subtitle">Tạo và quản lý ngân hàng câu hỏi</p>
+        </div>
+        <button onClick={handleAdd} className="btn-primary">+ Thêm câu hỏi</button>
       </div>
 
-      <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Filter by Subject
-        </label>
-        <select
-          value={filterSubject}
-          onChange={(e) => setFilterSubject(e.target.value ? Number(e.target.value) : '')}
-          className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="">All Subjects</option>
-          {subjects.map((subject) => (
-            <option key={subject.id} value={subject.id}>
-              {subject.name}
-            </option>
-          ))}
-        </select>
+      <div className="filter-bar">
+        <div className="flex-1 min-w-[200px]">
+          <label className="form-label">Lọc theo môn học</label>
+          <select
+            value={filterSubject}
+            onChange={(e) => setFilterSubject(e.target.value ? Number(e.target.value) : '')}
+            className="input-field"
+          >
+            <option value="">Tất cả môn học</option>
+            {subjects.map((subject) => (
+              <option key={subject.id} value={subject.id}>{subject.name}</option>
+            ))}
+          </select>
+        </div>
+        <div className="text-sm text-slate-500 self-end pb-2.5">
+          {filteredQuestions.length} câu hỏi
+        </div>
       </div>
 
       {showForm ? (
@@ -129,199 +129,145 @@ export default function Questions() {
           <QuestionForm
             question={editingQuestion}
             onSave={handleSave}
-            onCancel={() => {
-              setShowForm(false);
-              setEditingQuestion(undefined);
-            }}
+            onCancel={() => { setShowForm(false); setEditingQuestion(undefined); }}
           />
         </div>
       ) : (
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  ID
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Subject
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Type
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Content
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  File
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Difficulty
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Year
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredQuestions.length === 0 ? (
+        <div className="data-table-wrapper animate-fade-in-up">
+          <div className="overflow-x-auto">
+            <table>
+              <thead>
                 <tr>
-                  <td colSpan={8} className="px-6 py-4 text-center text-gray-500">
-                    No questions found
-                  </td>
+                  <th>ID</th>
+                  <th>Môn học</th>
+                  <th>Loại</th>
+                  <th>Nội dung</th>
+                  <th>File</th>
+                  <th>Độ khó</th>
+                  <th>Năm</th>
+                  <th className="text-right">Thao tác</th>
                 </tr>
-              ) : (
-                filteredQuestions.map((question) => (
-                  <tr key={question.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {question.id}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {subjects.find((s) => s.id === question.subjectId)?.name || '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {question.questionType}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
-                      {question.content}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      {question.fileUrl ? (
-                        <button
-                          onClick={() => setPreviewQuestion(question)}
-                          className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                          title="View file / reference"
-                        >
-                          <span>{getFileTypeIcon(question.fileType)}</span>
-                          <span className="underline">View</span>
-                        </button>
-                      ) : (
-                        <span className="text-gray-400">-</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-${getDifficultyColor(question.difficulty)}-100 text-${getDifficultyColor(question.difficulty)}-800`}
-                      >
-                        {getDifficultyLabel(question.difficulty)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {question.year || '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button
-                        onClick={() => handleEdit(question)}
-                        className="text-blue-600 hover:text-blue-900 mr-4"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(question.id)}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        Delete
-                      </button>
+              </thead>
+              <tbody>
+                {filteredQuestions.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="text-center py-12 text-slate-500">
+                      <div className="empty-symbol">Q</div>
+                      Chưa có câu hỏi nào
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  filteredQuestions.map((question, index) => {
+                    const diff = getDifficulty(question.difficulty);
+                    return (
+                      <tr
+                        key={question.id}
+                        className="animate-fade-in-up"
+                        style={{ animationDelay: `${index * 40}ms`, animationFillMode: 'forwards', opacity: 0 }}
+                      >
+                        <td className="font-semibold text-slate-800">#{question.id}</td>
+                        <td>{subjects.find((s) => s.id === question.subjectId)?.name || '-'}</td>
+                        <td><span className="badge badge-info">{question.questionType}</span></td>
+                        <td className="max-w-xs truncate">{question.content}</td>
+                        <td>
+                          {question.fileUrl ? (
+                            <button
+                              onClick={() => setPreviewQuestion(question)}
+                              className="text-indigo-600 hover:text-indigo-800 flex items-center gap-1 font-medium transition-colors"
+                            >
+                              <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">
+                                {getFileTypeLabel(question.fileType)}
+                              </span>
+                              Xem
+                            </button>
+                          ) : (
+                            <span className="text-slate-400">-</span>
+                          )}
+                        </td>
+                        <td>
+                          <span className={diff.className}>{diff.label}</span>
+                        </td>
+                        <td>{question.year || '-'}</td>
+                        <td className="text-right">
+                          <button onClick={() => handleEdit(question)} className="btn-ghost text-indigo-600">Sửa</button>
+                          <button onClick={() => handleDelete(question.id)} className="btn-danger">Xóa</button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
-      {/* Preview Modal */}
       {previewQuestion && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="p-4 border-b flex justify-between items-center bg-gray-50">
+        <div className="fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4">
+          <div className="modal-content rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="p-5 border-b border-slate-100 flex justify-between items-center">
               <div>
-                <h2 className="text-xl font-semibold">Question Preview</h2>
-                <p className="text-sm text-gray-500">
-                  {subjects.find((s) => s.id === previewQuestion.subjectId)?.name} - {previewQuestion.questionType}
+                <h2 className="text-xl font-bold font-[family-name:var(--font-display)]">Xem trước câu hỏi</h2>
+                <p className="text-sm text-slate-500">
+                  {subjects.find((s) => s.id === previewQuestion.subjectId)?.name} — {previewQuestion.questionType}
                 </p>
               </div>
-              <button
-                onClick={() => setPreviewQuestion(null)}
-                className="text-gray-500 hover:text-gray-700 text-2xl"
-              >
-                &times;
-              </button>
+              <button onClick={() => setPreviewQuestion(null)} className="w-8 h-8 rounded-lg hover:bg-slate-100 text-slate-500 text-xl transition-colors">×</button>
             </div>
             <div className="p-6 overflow-y-auto flex-1">
               <div className="mb-6">
-                <h3 className="text-sm font-semibold text-gray-600 mb-2">Question Content:</h3>
-                <p className="text-gray-800 whitespace-pre-wrap">{previewQuestion.content}</p>
+                <h3 className="form-label">Nội dung câu hỏi</h3>
+                <p className="text-slate-800 whitespace-pre-wrap leading-relaxed">{previewQuestion.content}</p>
               </div>
-
               {previewQuestion.explanation && (
-                <div className="mb-6">
-                  <h3 className="text-sm font-semibold text-gray-600 mb-2">Explanation:</h3>
-                  <p className="text-gray-600 whitespace-pre-wrap">{previewQuestion.explanation}</p>
+                <div className="mb-6 p-4 rounded-xl bg-emerald-50 border border-emerald-100">
+                  <h3 className="form-label text-emerald-700">Giải thích</h3>
+                  <p className="text-slate-700 whitespace-pre-wrap">{previewQuestion.explanation}</p>
                 </div>
               )}
-
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <div>
-                  <span className="text-sm font-semibold text-gray-600">Difficulty:</span>
-                  <span className={`ml-2 px-2 py-1 text-xs rounded-full bg-${getDifficultyColor(previewQuestion.difficulty)}-100 text-${getDifficultyColor(previewQuestion.difficulty)}-800`}>
-                    {getDifficultyLabel(previewQuestion.difficulty)}
+                  <span className="form-label">Độ khó</span>
+                  <span className={`ml-2 ${getDifficulty(previewQuestion.difficulty).className}`}>
+                    {getDifficulty(previewQuestion.difficulty).label}
                   </span>
                 </div>
                 <div>
-                  <span className="text-sm font-semibold text-gray-600">Year:</span>
-                  <span className="ml-2 text-gray-800">{previewQuestion.year || '-'}</span>
+                  <span className="form-label">Năm</span>
+                  <span className="ml-2 text-slate-800">{previewQuestion.year || '-'}</span>
                 </div>
                 <div>
-                  <span className="text-sm font-semibold text-gray-600">Source:</span>
-                  <span className="ml-2 text-gray-800">{previewQuestion.source || '-'}</span>
+                  <span className="form-label">Nguồn</span>
+                  <span className="ml-2 text-slate-800">{previewQuestion.source || '-'}</span>
                 </div>
               </div>
-
               {previewQuestion.fileUrl && (
-                <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <h3 className="text-sm font-semibold text-blue-800 mb-3 flex items-center gap-2">
-                    <span>{getFileTypeIcon(previewQuestion.fileType)}</span>
-                    Attached File / Reference
+                <div className="form-section">
+                  <h3 className="text-sm font-bold text-indigo-700 mb-3 flex items-center gap-2">
+                    <span>{getFileTypeLabel(previewQuestion.fileType)}</span>
+                    File đính kèm
                   </h3>
-                  <div className="bg-white rounded p-3 mb-3">
-                    <p className="text-sm text-gray-600 mb-2">Link:</p>
-                    <p className="text-sm text-blue-600 break-all">{previewQuestion.fileUrl}</p>
-                  </div>
+                  <p className="text-sm text-indigo-600 break-all mb-4">{previewQuestion.fileUrl}</p>
                   <div className="flex gap-3">
-                    <a
-                      href={previewQuestion.fileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-center"
-                    >
-                      Open File / Reference
+                    <a href={previewQuestion.fileUrl} target="_blank" rel="noopener noreferrer" className="btn-primary flex-1 text-center">
+                      Mở file
                     </a>
                     {previewQuestion.fileType === 'google_drive' && (
                       <a
                         href={`https://drive.google.com/file/d/${previewQuestion.fileUrl.match(/\/d\/([a-zA-Z0-9_-]+)/)?.[1]}/preview`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex-1 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-center"
+                        className="btn-secondary flex-1 text-center"
                       >
-                        Preview in Drive
+                        Xem trên Drive
                       </a>
                     )}
                   </div>
                 </div>
               )}
             </div>
-            <div className="p-4 border-t bg-gray-50 flex justify-end gap-2">
-              <button
-                onClick={() => setPreviewQuestion(null)}
-                className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
-              >
-                Close
-              </button>
+            <div className="p-4 border-t border-slate-100 flex justify-end">
+              <button onClick={() => setPreviewQuestion(null)} className="btn-secondary">Đóng</button>
             </div>
           </div>
         </div>

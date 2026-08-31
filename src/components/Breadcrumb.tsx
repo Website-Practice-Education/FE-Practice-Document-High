@@ -11,22 +11,28 @@ interface BreadcrumbProps {
 
 export default function Breadcrumb({ items }: BreadcrumbProps) {
   return (
-    <nav className="mb-4">
-      <ol className="flex items-center space-x-2 text-sm">
+    <nav className="mb-6 animate-fade-in-down">
+      <ol className="flex items-center gap-2 text-sm">
         <li>
-          <Link to="/" className="text-blue-600 hover:text-blue-800">
+          <Link
+            to="/"
+            className="text-indigo-500 hover:text-indigo-700 font-medium transition-colors duration-200"
+          >
             Home
           </Link>
         </li>
         {items.map((item, index) => (
-          <li key={index} className="flex items-center">
-            <span className="mx-2 text-gray-400">/</span>
+          <li key={index} className="flex items-center gap-2">
+            <span className="text-slate-300">/</span>
             {item.path ? (
-              <Link to={item.path} className="text-blue-600 hover:text-blue-800">
+              <Link
+                to={item.path}
+                className="text-indigo-500 hover:text-indigo-700 font-medium transition-colors duration-200"
+              >
                 {item.label}
               </Link>
             ) : (
-              <span className="text-gray-500">{item.label}</span>
+              <span className="text-slate-500 font-medium">{item.label}</span>
             )}
           </li>
         ))}
