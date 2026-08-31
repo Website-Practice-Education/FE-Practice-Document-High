@@ -4,7 +4,8 @@ import type { Question } from '../types';
 export const QuestionService = {
   getAll: async (): Promise<Question[]> => {
     const response = await api.get('/questions');
-    return response.data;
+    const data = response.data;
+    return Array.isArray(data) ? data : (data?.questions || data?.data || []);
   },
 
   getById: async (id: number): Promise<Question> => {

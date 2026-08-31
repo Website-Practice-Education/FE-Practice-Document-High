@@ -6,6 +6,14 @@ import {
   DocumentPaginationResponse
 } from '../types';
 
+// Helper to normalize array responses from backend
+const normalizeArray = (data: any): any[] => {
+  if (Array.isArray(data)) return data;
+  if (data?.data) return Array.isArray(data.data) ? data.data : [data.data];
+  if (data?.items) return data.items;
+  return [];
+};
+
 const documentService = {
   // Lấy danh sách tài liệu với bộ lọc
   getDocuments: async (filter: DocumentFilterRequest = {}): Promise<DocumentPaginationResponse> => {
@@ -24,13 +32,15 @@ const documentService = {
     params.append('pageSize', (filter.pageSize || 20).toString());
 
     const response = await api.get(`/documents?${params.toString()}`);
+    console.log('documentService raw response:', response);
+    console.log('documentService response.data:', response.data);
     return response.data;
   },
 
   // Lấy chi tiết một tài liệu
   getDocumentById: async (id: number): Promise<SharedDocument> => {
     const response = await api.get(`/documents/${id}`);
-    return response.data.data;
+    return response.data?.data || response.data;
   },
 
   // Upload file lên storage
@@ -44,7 +54,7 @@ const documentService = {
         'Content-Type': 'multipart/form-data',
       },
     });
-    return response.data.data;
+    return response.data?.data || response.data;
   },
 
   // Xóa file khỏi storage
@@ -55,7 +65,7 @@ const documentService = {
   // Tạo tài liệu mới
   createDocument: async (data: CreateDocumentRequest): Promise<SharedDocument> => {
     const response = await api.post('/documents', data);
-    return response.data.data;
+    return response.data?.data || response.data;
   },
 
   // Tạo tài liệu với file upload (upload file trước, sau đó tạo document)
@@ -79,13 +89,13 @@ const documentService = {
       fileType: file?.type,
       fileSize: file?.size,
     });
-    return response.data.data;
+    return response.data?.data || response.data;
   },
 
   // Cập nhật tài liệu
   updateDocument: async (id: number, data: Partial<CreateDocumentRequest>): Promise<SharedDocument> => {
     const response = await api.put(`/documents/${id}`, data);
-    return response.data.data;
+    return response.data?.data || response.data;
   },
 
   // Xóa tài liệu
@@ -106,25 +116,25 @@ const documentService = {
   // Lấy tài liệu theo môn học
   getBySubject: async (subjectId: number, page = 1, pageSize = 20): Promise<SharedDocument[]> => {
     const response = await api.get(`/documents/by-subject/${subjectId}?page=${page}&pageSize=${pageSize}`);
-    return response.data.data;
+    return normalizeArray(response.data);
   },
 
   // Lấy tài liệu theo chủ đề
   getByTopic: async (topicId: number, page = 1, pageSize = 20): Promise<SharedDocument[]> => {
     const response = await api.get(`/documents/by-topic/${topicId}?page=${page}&pageSize=${pageSize}`);
-    return response.data.data;
+    return normalizeArray(response.data);
   },
 
   // Tìm kiếm tài liệu
   search: async (keyword: string, page = 1, pageSize = 20): Promise<SharedDocument[]> => {
     const response = await api.get(`/documents/search?keyword=${encodeURIComponent(keyword)}&page=${page}&pageSize=${pageSize}`);
-    return response.data.data;
+    return normalizeArray(response.data);
   },
 
   // Lấy tài liệu của người dùng hiện tại
   getMyDocuments: async (page = 1, pageSize = 20): Promise<SharedDocument[]> => {
     const response = await api.get(`/documents/my-documents?page=${page}&pageSize=${pageSize}`);
-    return response.data.data;
+    return normalizeArray(response.data);
   },
 };
 

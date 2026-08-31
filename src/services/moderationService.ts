@@ -1,6 +1,14 @@
 import api from './api';
 import { SharedDocument } from '../types';
 
+// Helper to normalize array responses from backend
+const normalizeArray = (data: any): any[] => {
+  if (Array.isArray(data)) return data;
+  if (data?.data) return Array.isArray(data.data) ? data.data : [data.data];
+  if (data?.items) return data.items;
+  return [];
+};
+
 const moderationService = {
   // Get pending documents
   getPendingDocuments: async (page = 1, pageSize = 20) => {
@@ -35,7 +43,7 @@ const moderationService = {
   // Get document details
   getDocument: async (id: number) => {
     const response = await api.get(`/moderation/documents/${id}`);
-    return response.data;
+    return response.data?.data || response.data;
   },
 
   // Approve document
@@ -53,7 +61,7 @@ const moderationService = {
   // Update document content
   updateDocument: async (id: number, data: Partial<SharedDocument>) => {
     const response = await api.put(`/moderation/documents/${id}`, data);
-    return response.data;
+    return response.data?.data || response.data;
   },
 
   // Delete document

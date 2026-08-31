@@ -4,7 +4,8 @@ import type { Exam } from '../types';
 export const ExamService = {
   getAll: async (): Promise<Exam[]> => {
     const response = await api.get('/exams');
-    return response.data;
+    const data = response.data;
+    return Array.isArray(data) ? data : (data?.exams || data?.data || []);
   },
 
   getById: async (id: number): Promise<Exam> => {

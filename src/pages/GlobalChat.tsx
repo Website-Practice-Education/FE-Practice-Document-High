@@ -82,13 +82,31 @@ export default function GlobalChat() {
         if (response.status === 401) {
           console.error('Unauthorized: Please login again');
         }
+        setLoading(false);
         return;
       }
       const data = await response.json();
-      const msgs: ChatMessage[] = data?.data || [];
+      // Handle various API response formats with defensive checks
+      let msgs: ChatMessage[] = [];
+      if (Array.isArray(data)) {
+        msgs = data;
+      } else if (data && typeof data === 'object') {
+        if (Array.isArray(data.data)) {
+          msgs = data.data;
+        } else if (Array.isArray(data.messages)) {
+          msgs = data.messages;
+        } else if (Array.isArray(data.items)) {
+          msgs = data.items;
+        } else if (data.result) {
+          msgs = Array.isArray(data.result) ? data.result : [];
+        }
+      }
       setMessages(msgs);
     } catch (error) {
       console.error('Failed to load messages:', error);
+      setMessages([]);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -165,7 +183,7 @@ export default function GlobalChat() {
               <p className="text-sm text-slate-400 mt-1">Hãy bắt đầu cuộc trò chuyện!</p>
             </div>
           ) : (
-            messages.map((msg, index) => {
+            (Array.isArray(messages) ? messages : []).map((msg, index) => {
               const isMine = msg.userId === currentUserId();
               return (
                 <div

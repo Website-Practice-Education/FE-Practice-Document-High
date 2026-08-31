@@ -105,9 +105,11 @@ export default function FloatingChat() {
     }
   };
 
+  const API_BASE_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || '';
+
   const loadMessages = async () => {
     try {
-      const response = await fetch(`/chat/${GLOBAL_SPACE_ID}/messages?pageSize=50`, {
+      const response = await fetch(`${API_BASE_URL}/chat/${GLOBAL_SPACE_ID}/messages?pageSize=50`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -272,7 +274,7 @@ export default function FloatingChat() {
                     </div>
                   ) : (
                     <div className="p-3 space-y-2">
-                      {messages.map((msg) => {
+                      {(Array.isArray(messages) ? messages : []).map((msg) => {
                         const isMine = msg.userId === currentUserId();
                         return (
                           <div

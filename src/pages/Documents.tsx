@@ -61,7 +61,7 @@ export default function Documents() {
   const fetchSubjects = async () => {
     try {
       const data = await SubjectService.getAll();
-      console.log('Subjects loaded:', data);
+      console.log('Raw subjects response:', data);
       setSubjects(data || []);
     } catch (error) {
       console.error('Error fetching subjects:', error);
@@ -82,10 +82,74 @@ export default function Documents() {
     setLoading(true);
     try {
       const response = await documentService.getDocuments(filters);
-      setDocuments(response.data);
-      setPagination(response.pagination);
+      console.log('API Response for documents:', response);
+      console.log('Response type:', typeof response);
+      console.log('Is array:', Array.isArray(response));
+      
+      // Normalize response to handle different API formats
+      let docsArray: SharedDocument[] = [];
+      
+      // Handle various response formats
+      if (Array.isArray(response)) {
+        // Direct array response
+        docsArray = response;
+        console.log('Using direct array response');
+      } else if (response && typeof response === 'object') {
+        // Object response - try different property names
+        if (Array.isArray(response.data)) {
+          docsArray = response.data;
+          console.log('Using response.data array');
+        } else if (Array.isArray((response as any).items)) {
+          docsArray = (response as any).items;
+          console.log('Using response.items array');
+        } else if (response.data && typeof response.data === 'object' && Array.isArray((response.data as any).items)) {
+          docsArray = (response.data as any).items;
+          console.log('Using response.data.items array');
+        } else if (response.data && typeof response.data === 'object' && Array.isArray((response.data as any).data)) {
+          docsArray = (response.data as any).data;
+          console.log('Using response.data.data array');
+        } else {
+          // Try to get any array property
+          const possibleArrays = ['documents', 'results', 'content', 'records'];
+          for (const key of possibleArrays) {
+            if (Array.isArray((response as any)[key])) {
+              docsArray = (response as any)[key];
+              console.log(`Using response.${key} array`);
+              break;
+            }
+          }
+        }
+      }
+      
+      // Ensure docsArray is always an array
+      if (!Array.isArray(docsArray)) {
+        docsArray = [];
+      }
+      
+      console.log('Normalized documents array:', docsArray);
+      setDocuments(docsArray);
+      
+      // Handle pagination from different formats
+      let paginationData = null;
+      if (response?.pagination) {
+        paginationData = response.pagination;
+      } else if (response?.data?.pagination) {
+        paginationData = response.data.pagination;
+      }
+      
+      if (paginationData) {
+        setPagination(paginationData);
+      } else {
+        setPagination({
+          currentPage: filters.page || 1,
+          pageSize: filters.pageSize || 12,
+          totalItems: docsArray.length,
+          totalPages: Math.ceil(docsArray.length / (filters.pageSize || 12)),
+        });
+      }
     } catch (error) {
       console.error('Error fetching documents:', error);
+      setDocuments([]);
       toast.error('Không thể tải danh sách tài liệu');
     } finally {
       setLoading(false);
@@ -346,12 +410,12 @@ export default function Documents() {
         </div>
       </div>
 
-      {/* Documents Grid */}
+      {/* Documents Grid - Safe array check */}
       {loading ? (
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-500 border-t-transparent"></div>
         </div>
-      ) : documents.length === 0 ? (
+      ) : !Array.isArray(documents) || documents.length === 0 ? (
         <div className="text-center py-16">
           <div className="text-6xl mb-4">📄</div>
           <h3 className="text-xl font-medium text-white mb-2">Chưa có tài liệu nào</h3>

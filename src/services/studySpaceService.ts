@@ -2,6 +2,14 @@ import api from './api';
 
 const BASE_URL = '/studyspaces';
 
+// Helper to normalize array responses from backend
+const normalizeArray = (data: any): any[] => {
+  if (Array.isArray(data)) return data;
+  if (data?.data) return Array.isArray(data.data) ? data.data : [data.data];
+  if (data?.items) return data.items;
+  return [];
+};
+
 export interface CreateSpaceRequest {
   name: string;
   description?: string;
@@ -39,32 +47,32 @@ export interface UpdateSpaceRequest {
 export const studySpaceService = {
   getMySpaces: async (): Promise<StudySpace[]> => {
     const response = await api.get(`${BASE_URL}`);
-    return response.data.data;
+    return normalizeArray(response.data);
   },
 
   getMyCreatedSpaces: async (): Promise<StudySpace[]> => {
     const response = await api.get(`${BASE_URL}/my-created`);
-    return response.data.data;
+    return normalizeArray(response.data);
   },
 
   getPublicSpaces: async (page = 1, pageSize = 20): Promise<StudySpace[]> => {
     const response = await api.get(`${BASE_URL}/public`, { params: { page, pageSize } });
-    return response.data.data;
+    return normalizeArray(response.data);
   },
 
   getSpace: async (id: number): Promise<StudySpace> => {
     const response = await api.get(`${BASE_URL}/${id}`);
-    return response.data.data;
+    return response.data?.data || response.data;
   },
 
   createSpace: async (data: CreateSpaceRequest): Promise<StudySpace> => {
     const response = await api.post(BASE_URL, data);
-    return response.data.data;
+    return response.data?.data || response.data;
   },
 
   updateSpace: async (id: number, data: UpdateSpaceRequest): Promise<StudySpace> => {
     const response = await api.put(`${BASE_URL}/${id}`, data);
-    return response.data.data;
+    return response.data?.data || response.data;
   },
 
   joinSpace: async (id: number, inviteCode?: string): Promise<void> => {
@@ -73,7 +81,7 @@ export const studySpaceService = {
 
   joinByCode: async (inviteCode: string): Promise<{ spaceId: number; spaceName: string }> => {
     const response = await api.post(`${BASE_URL}/join-by-code`, { inviteCode });
-    return response.data.data;
+    return response.data?.data || response.data;
   },
 
   leaveSpace: async (id: number): Promise<void> => {
@@ -98,7 +106,7 @@ export interface ChatMessage {
 export const chatService = {
   getMessages: async (spaceId: number, page = 1, pageSize = 50): Promise<ChatMessage[]> => {
     const response = await api.get(`/chat/${spaceId}/messages`, { params: { page, pageSize } });
-    return response.data.data;
+    return normalizeArray(response.data);
   },
 };
 
@@ -129,17 +137,17 @@ export interface SearchUser {
 export const friendService = {
   getFriends: async (): Promise<Friend[]> => {
     const response = await api.get('/friends');
-    return response.data.data;
+    return normalizeArray(response.data);
   },
 
   getPendingRequests: async (): Promise<FriendRequest[]> => {
     const response = await api.get('/friends/requests');
-    return response.data.data;
+    return normalizeArray(response.data);
   },
 
   searchUsers: async (query: string): Promise<SearchUser[]> => {
     const response = await api.get('/friends/search', { params: { q: query } });
-    return response.data.data;
+    return normalizeArray(response.data);
   },
 
   sendRequest: async (friendId: number): Promise<void> => {

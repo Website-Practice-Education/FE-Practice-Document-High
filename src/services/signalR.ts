@@ -17,13 +17,45 @@ class SignalRService {
   private connection: HubConnection | null = null;
   private messageCallbacks: ((message: ChatMessage) => void)[] = [];
   private typingCallbacks: ((data: { userId: number; spaceId: number }) => void)[] = [];
+  private connectionPromise: Promise<void> | null = null;
+  private currentToken: string | null = null;
 
   async start(token: string): Promise<void> {
-    if (this.connection?.state === HubConnectionState.Connected) return;
+    // If already connected with the same token, return immediately
+    if (this.connection?.state === HubConnectionState.Connected && this.currentToken === token) {
+      return;
+    }
 
+    // If a connection attempt is already in progress, wait for it
+    if (this.connectionPromise) {
+      return this.connectionPromise;
+    }
+
+    // Stop any existing connection before starting a new one
+    if (this.connection) {
+      try {
+        await this.connection.stop();
+      } catch (e) {
+        // Ignore errors when stopping
+      }
+      this.connection = null;
+    }
+
+    this.currentToken = token;
+    this.connectionPromise = this.doStart(token);
+
+    try {
+      await this.connectionPromise;
+    } finally {
+      this.connectionPromise = null;
+    }
+  }
+
+  private async doStart(token: string): Promise<void> {
     this.connection = new HubConnectionBuilder()
       .withUrl(HUB_URL, { accessTokenFactory: () => token })
-      .withAutomaticReconnect()
+      .withAutomaticReconnect([0, 1000, 5000, 10000, 30000]) // Retry with increasing delays
+      .configureLogging('warn') // Reduce log verbosity
       .build();
 
     this.connection.on('ReceiveMessage', (message: ChatMessage) => {
@@ -34,14 +66,27 @@ class SignalRService {
       this.typingCallbacks.forEach(cb => cb(data));
     });
 
-    await this.connection.start();
+    try {
+      await this.connection.start();
+    } catch (error) {
+      // Reset connection state on failure
+      this.connection = null;
+      this.currentToken = null;
+      throw error;
+    }
   }
 
   async stop(): Promise<void> {
     if (this.connection) {
-      await this.connection.stop();
+      try {
+        await this.connection.stop();
+      } catch (e) {
+        // Ignore errors when stopping
+      }
       this.connection = null;
+      this.currentToken = null;
     }
+    this.connectionPromise = null;
   }
 
   async joinSpace(spaceId: string): Promise<void> {

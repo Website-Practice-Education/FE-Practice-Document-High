@@ -1,10 +1,19 @@
 import api from './api';
 import type { User, ForgotPasswordRequest, ResetPasswordRequest, PasswordResetResponse } from '../types';
 
+// Helper to normalize array responses from backend
+const normalizeArray = (data: any): any[] => {
+  if (Array.isArray(data)) return data;
+  if (data?.users) return data.users;
+  if (data?.data) return data.data;
+  if (data?.items) return data.items;
+  return [];
+};
+
 export const UserService = {
   getAll: async (): Promise<User[]> => {
     const response = await api.get('/users');
-    return response.data;
+    return normalizeArray(response.data);
   },
 
   getById: async (id: number): Promise<User> => {
@@ -19,7 +28,7 @@ export const UserService = {
 
   getByRole: async (role: string): Promise<User[]> => {
     const response = await api.get(`/users/role/${role}`);
-    return response.data;
+    return normalizeArray(response.data);
   },
 
   search: async (keyword?: string, role?: string, isActive?: boolean): Promise<User[]> => {
@@ -28,22 +37,22 @@ export const UserService = {
     if (role) params.append('role', role);
     if (isActive !== undefined) params.append('isActive', String(isActive));
     const response = await api.get(`/users/search?${params.toString()}`);
-    return response.data;
+    return normalizeArray(response.data);
   },
 
   getRecentlyActive: async (count = 10): Promise<User[]> => {
     const response = await api.get(`/users/recently-active?count=${count}`);
-    return response.data;
+    return normalizeArray(response.data);
   },
 
   getInactive: async (days = 90): Promise<User[]> => {
     const response = await api.get(`/users/inactive?days=${days}`);
-    return response.data;
+    return normalizeArray(response.data);
   },
 
   getCount: async (): Promise<number> => {
     const response = await api.get('/users/count');
-    return response.data.totalUsers;
+    return response.data?.totalUsers ?? response.data ?? 0;
   },
 
   create: async (user: Omit<User, 'id'>): Promise<User> => {

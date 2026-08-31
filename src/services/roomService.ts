@@ -2,6 +2,14 @@ import api from './api';
 
 const BASE_URL = '/room';
 
+// Helper to normalize array responses from backend
+const normalizeArray = (data: any): any[] => {
+  if (Array.isArray(data)) return data;
+  if (data?.data) return Array.isArray(data.data) ? data.data : [data.data];
+  if (data?.items) return data.items;
+  return [];
+};
+
 // Types
 export interface MusicTrack {
   id: number;
@@ -45,12 +53,12 @@ export interface RoomSettings {
 export const musicService = {
   getTracks: async (spaceId: number): Promise<MusicTrack[]> => {
     const response = await api.get(`${BASE_URL}/${spaceId}/music`);
-    return response.data.data;
+    return normalizeArray(response.data);
   },
 
   addFromLink: async (spaceId: number, data: { title: string; artist?: string; url: string; durationSeconds: number }): Promise<MusicTrack> => {
     const response = await api.post(`${BASE_URL}/${spaceId}/music/link`, data);
-    return response.data.data;
+    return response.data?.data || response.data;
   },
 
   upload: async (spaceId: number, file: File, title: string, artist?: string, duration: number = 0): Promise<MusicTrack> => {
@@ -63,7 +71,7 @@ export const musicService = {
     const response = await api.post(`${BASE_URL}/${spaceId}/music/upload`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
-    return response.data.data;
+    return response.data?.data || response.data;
   },
 
   delete: async (trackId: number): Promise<void> => {
@@ -75,7 +83,7 @@ export const musicService = {
 export const fileService = {
   getFiles: async (spaceId: number): Promise<SharedFile[]> => {
     const response = await api.get(`${BASE_URL}/${spaceId}/files`);
-    return response.data.data;
+    return normalizeArray(response.data);
   },
 
   upload: async (spaceId: number, file: File): Promise<SharedFile> => {
@@ -85,7 +93,7 @@ export const fileService = {
     const response = await api.post(`${BASE_URL}/${spaceId}/files/upload`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
-    return response.data.data;
+    return response.data?.data || response.data;
   },
 
   download: async (fileId: number): Promise<Blob> => {
@@ -109,7 +117,7 @@ export const fileService = {
 export const roomSettingsService = {
   get: async (spaceId: number): Promise<RoomSettings> => {
     const response = await api.get(`${BASE_URL}/${spaceId}/settings`);
-    return response.data.data;
+    return response.data?.data || response.data;
   },
 
   updateBackground: async (spaceId: number, backgroundType: string, backgroundValue?: string, backgroundImagePath?: string): Promise<RoomSettings> => {
@@ -118,7 +126,7 @@ export const roomSettingsService = {
       backgroundValue,
       backgroundImagePath,
     });
-    return response.data.data;
+    return response.data?.data || response.data;
   },
 
   uploadBackgroundImage: async (spaceId: number, file: File): Promise<{ backgroundImagePath: string; imageUrl: string }> => {
@@ -128,11 +136,11 @@ export const roomSettingsService = {
     const response = await api.post(`${BASE_URL}/${spaceId}/settings/background/upload`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
-    return response.data.data;
+    return response.data?.data || response.data;
   },
 
   updateAccentColor: async (spaceId: number, accentColor: string): Promise<RoomSettings> => {
     const response = await api.put(`${BASE_URL}/${spaceId}/settings/accent`, { accentColor });
-    return response.data.data;
+    return response.data?.data || response.data;
   },
 };

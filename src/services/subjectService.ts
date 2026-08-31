@@ -4,8 +4,11 @@ import type { Subject } from '../types';
 export const SubjectService = {
   getAll: async (): Promise<Subject[]> => {
     const response = await api.get('/subjects');
-    // Backend returns array directly, not wrapped in { data: [...] }
-    return response.data || [];
+    console.log('SubjectService raw response:', response);
+    console.log('SubjectService response.data:', response.data);
+    const data = response.data;
+    // Backend returns { subjects: [...] } or { data: [...] } or [...]
+    return Array.isArray(data) ? data : (data?.subjects || data?.data || []);
   },
 
   getById: async (id: number): Promise<Subject> => {
