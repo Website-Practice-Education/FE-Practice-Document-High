@@ -6,11 +6,21 @@ import {
   DocumentPaginationResponse
 } from '../types';
 
-// Helper to normalize array responses from backend
+// ASP.NET Core serializes collections as { $values: [...] }
 const normalizeArray = (data: any): any[] => {
   if (Array.isArray(data)) return data;
-  if (data?.data) return Array.isArray(data.data) ? data.data : [data.data];
-  if (data?.items) return data.items;
+  if (Array.isArray(data?.$values)) return data.$values;
+  if (Array.isArray(data?.items)) return data.items;
+  if (Array.isArray(data?.data)) return data.data;
+  if (Array.isArray(data?.data?.$values)) return data.data.$values;
+  if (data && typeof data === 'object') {
+    const keys = ['items', 'data', 'documents', 'results', 'records'];
+    for (const key of keys) {
+      const value = data[key];
+      if (Array.isArray(value)) return value;
+      if (value && Array.isArray(value.$values)) return value.$values;
+    }
+  }
   return [];
 };
 

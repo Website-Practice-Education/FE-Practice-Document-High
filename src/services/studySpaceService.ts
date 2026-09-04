@@ -2,11 +2,23 @@ import api from './api';
 
 const BASE_URL = '/studyspaces';
 
-// Helper to normalize array responses from backend
+// ASP.NET Core serializes collections as { $values: [...] }
 const normalizeArray = (data: any): any[] => {
   if (Array.isArray(data)) return data;
-  if (data?.data) return Array.isArray(data.data) ? data.data : [data.data];
-  if (data?.items) return data.items;
+  if (Array.isArray(data?.$values)) return data.$values;
+  if (Array.isArray(data?.value)) return data.value;
+  if (Array.isArray(data?.items)) return data.items;
+  if (Array.isArray(data?.data)) return data.data;
+  if (Array.isArray(data?.data?.$values)) return data.data.$values;
+  if (Array.isArray(data?.data?.items)) return data.data.items;
+  if (data && typeof data === 'object') {
+    const keys = ['items', 'data', 'documents', 'results', 'records'];
+    for (const key of keys) {
+      const value = data[key];
+      if (Array.isArray(value)) return value;
+      if (value && Array.isArray(value.$values)) return value.$values;
+    }
+  }
   return [];
 };
 
@@ -62,7 +74,12 @@ export const studySpaceService = {
 
   getSpace: async (id: number): Promise<StudySpace> => {
     const response = await api.get(`${BASE_URL}/${id}`);
-    return response.data?.data || response.data;
+    const payload = response.data?.data ?? response.data ?? {};
+    return {
+      ...payload,
+      members: normalizeArray(payload?.members ?? payload?.data?.members ?? []),
+      memberCount: Number(payload?.memberCount ?? payload?.members?.length ?? normalizeArray(payload?.members ?? payload?.data?.members ?? []).length ?? 0),
+    };
   },
 
   createSpace: async (data: CreateSpaceRequest): Promise<StudySpace> => {

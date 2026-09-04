@@ -70,7 +70,18 @@ export default function SelfStudyRoom() {
     if (!token) return '0';
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
-      return payload.nameidentifier;
+      const candidates = [
+        payload.nameidentifier,
+        payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'],
+        payload.sub,
+        payload.userId,
+        payload.id,
+      ];
+      for (const c of candidates) {
+        const parsed = parseInt(c as string);
+        if (!isNaN(parsed)) return parsed.toString();
+      }
+      return '0';
     } catch {
       return '0';
     }

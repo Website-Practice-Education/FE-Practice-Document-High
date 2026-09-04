@@ -21,6 +21,7 @@ class SignalRService {
   private connection: HubConnection | null = null;
   private messageCallbacks: ((message: ChatMessage) => void)[] = [];
   private typingCallbacks: ((data: { userId: number; spaceId: number }) => void)[] = [];
+  private errorCallbacks: ((data: { code?: string; message: string }) => void)[] = [];
   private connectionPromise: Promise<void> | null = null;
   private currentToken: string | null = null;
 
@@ -32,13 +33,23 @@ class SignalRService {
 
     // If a connection attempt is already in progress, wait for it
     if (this.connectionPromise) {
-      return this.connectionPromise;
+      try {
+        await this.connectionPromise;
+        // If the existing connection is good, return
+        if (this.connection?.state === HubConnectionState.Connected) {
+          return;
+        }
+      } catch {
+        // Connection failed, will try to reconnect
+      }
     }
 
     // Stop any existing connection before starting a new one
     if (this.connection) {
       try {
         await this.connection.stop();
+        // Wait a bit for the connection to fully close
+        await new Promise(resolve => setTimeout(resolve, 100));
       } catch (e) {
         // Ignore errors when stopping
       }
@@ -56,13 +67,21 @@ class SignalRService {
   }
 
   private async doStart(token: string): Promise<void> {
+    console.log('[SignalR] Starting connection to', HUB_URL);
+    
     this.connection = new HubConnectionBuilder()
       .withUrl(HUB_URL, { accessTokenFactory: () => token })
-      .withAutomaticReconnect([0, 1000, 5000, 10000, 30000]) // Retry with increasing delays
+      .withAutomaticReconnect([0, 1000, 2000, 5000, 10000]) // Retry with increasing delays
       .configureLogging('warn') // Reduce log verbosity
       .build();
 
+    // Clear old callbacks to prevent duplicates
+    this.messageCallbacks = [];
+    this.typingCallbacks = [];
+    this.errorCallbacks = [];
+
     this.connection.on('ReceiveMessage', (message: ChatMessage) => {
+      console.log('[SignalR] ReceiveMessage:', message);
       this.messageCallbacks.forEach(cb => cb(message));
     });
 
@@ -70,9 +89,17 @@ class SignalRService {
       this.typingCallbacks.forEach(cb => cb(data));
     });
 
+    this.connection.on('Error', (data: { code?: string; message: string }) => {
+      console.error('[ChatHub Error]', data);
+      // Tùy chọn: gọi callback để component hiển thị toast
+      this.errorCallbacks.forEach(cb => cb(data));
+    });
+
     try {
       await this.connection.start();
+      console.log('[SignalR] Connected successfully');
     } catch (error) {
+      console.error('[SignalR] Connection failed:', error);
       // Reset connection state on failure
       this.connection = null;
       this.currentToken = null;
@@ -128,6 +155,13 @@ class SignalRService {
     this.typingCallbacks.push(callback);
     return () => {
       this.typingCallbacks = this.typingCallbacks.filter(cb => cb !== callback);
+    };
+  }
+
+  onError(callback: (data: { code?: string; message: string }) => void): () => void {
+    this.errorCallbacks.push(callback);
+    return () => {
+      this.errorCallbacks = this.errorCallbacks.filter(cb => cb !== callback);
     };
   }
 }

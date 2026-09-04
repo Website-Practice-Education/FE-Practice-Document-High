@@ -2,11 +2,16 @@ import api from './api';
 
 const BASE_URL = '/room';
 
-// Helper to normalize array responses from backend
+// Helper to normalize array responses from backend.
+// Backend uses ApiResponse<T> which serializes collections as { $values: [...] }
+// (because of ReferenceHandler.Preserve in Program.cs).
 const normalizeArray = (data: any): any[] => {
   if (Array.isArray(data)) return data;
-  if (data?.data) return Array.isArray(data.data) ? data.data : [data.data];
-  if (data?.items) return data.items;
+  if (data?.data?.$values && Array.isArray(data.data.$values)) return data.data.$values;
+  if (data?.data && Array.isArray(data.data)) return data.data;
+  if (data?.$values && Array.isArray(data.$values)) return data.$values;
+  if (data?.items && Array.isArray(data.items)) return data.items;
+  if (data?.value && Array.isArray(data.value)) return data.value;
   return [];
 };
 

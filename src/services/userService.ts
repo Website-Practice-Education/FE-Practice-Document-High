@@ -3,6 +3,10 @@ import type { User, ForgotPasswordRequest, ResetPasswordRequest, PasswordResetRe
 
 // Helper to normalize array responses from backend
 const normalizeArray = (data: any): any[] => {
+  // Handle System.Text.Json ReferenceHandler format: {$id, $values}
+  if (data?.$values && Array.isArray(data.$values)) {
+    return data.$values;
+  }
   if (Array.isArray(data)) return data;
   if (data?.users) return data.users;
   if (data?.data) return data.data;

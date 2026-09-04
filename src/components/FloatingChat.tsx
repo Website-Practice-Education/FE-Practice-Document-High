@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { signalRService } from '../services/signalR';
 import type { ChatMessage } from '../services/signalR';
+import { AuthService } from '../services/authService';
 
 const GLOBAL_SPACE_ID = 0;
 
@@ -12,9 +13,58 @@ export default function FloatingChat() {
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('disconnected');
   const [unreadCount, setUnreadCount] = useState(0);
   const [isMinimized, setIsMinimized] = useState(false);
+  // Vị trí của nút chat (có thể kéo thả)
+  const [position, setPosition] = useState({ bottom: 24, right: 24 });
+  const isDraggingRef = useRef(false);
+  const startPosRef = useRef({ x: 0, y: 0 });
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const unsubscribeRef = useRef<(() => void) | null>(null);
+  const unsubscribeTypingRef = useRef<(() => void) | null>(null);
+
+  // Callbacks cho drag events - dùng useCallback để giữ reference ổn định
+  const onMouseMove = useCallback((e: MouseEvent) => {
+    if (!isDraggingRef.current) return;
+    
+    const dx = e.clientX - startPosRef.current.x;
+    const dy = e.clientY - startPosRef.current.y;
+    
+    // Bắt đầu drag khi di chuyển đủ 5px
+    if (Math.abs(dx) >= 5 || Math.abs(dy) >= 5) {
+      isDraggingRef.current = true;
+    }
+    
+    if (isDraggingRef.current) {
+      setPosition(prev => ({
+        right: Math.max(24, Math.min(window.innerWidth - 80, prev.right + dx)),
+        bottom: Math.max(24, Math.min(window.innerHeight - 80, prev.bottom + dy))
+      }));
+      startPosRef.current = { x: e.clientX, y: e.clientY };
+    }
+  }, []);
+
+  const onMouseUp = useCallback(() => {
+    document.removeEventListener('mousemove', onMouseMove);
+    document.removeEventListener('mouseup', onMouseUp);
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    isDraggingRef.current = false;
+  }, [onMouseMove]);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (isOpen) return;
+    e.preventDefault();
+    
+    startPosRef.current = { x: e.clientX, y: e.clientY };
+    isDraggingRef.current = false;
+    
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+    document.body.style.cursor = 'grabbing';
+    document.body.style.userSelect = 'none';
+  };
 
   const token = localStorage.getItem('token');
 
@@ -22,16 +72,45 @@ export default function FloatingChat() {
     try {
       if (!token) return null;
       const payload = JSON.parse(atob(token.split('.')[1]));
-      return parseInt(payload.nameidentifier);
+      const candidates = [
+        payload.nameidentifier,
+        payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'],
+        payload.sub,
+        payload.userId,
+        payload.id,
+      ];
+      for (const c of candidates) {
+        const parsed = parseInt(c as string);
+        if (!isNaN(parsed)) return parsed;
+      }
+      return null;
     } catch {
       return null;
     }
   };
 
+  const currentUserName = (): string => {
+    try {
+      const u = AuthService.getCurrentUser();
+      return (u?.fullName as string) ?? 'Bạn';
+    } catch {
+      return 'Bạn';
+    }
+  };
+
+  const userId = currentUserId();
+
   useEffect(() => {
     if (!isOpen) return;
     loadMessages();
     connectToHub();
+    return () => {
+      unsubscribeRef.current?.();
+      unsubscribeRef.current = null;
+      unsubscribeTypingRef.current?.();
+      unsubscribeTypingRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   useEffect(() => {
@@ -47,16 +126,17 @@ export default function FloatingChat() {
     }
   }, [isOpen]);
 
-  // Listen for new messages even when chat is closed
+  // Listen for new messages even when chat is closed (unread badge)
   useEffect(() => {
     if (!token) return;
     let initialized = false;
+    let unsubBadge: (() => void) | null = null;
 
     const initListener = async () => {
       if (initialized) return;
       try {
         await signalRService.start(token);
-        signalRService.onMessage((msg: ChatMessage) => {
+        unsubBadge = signalRService.onMessage((msg: ChatMessage) => {
           if (msg.spaceId === GLOBAL_SPACE_ID && !isOpen) {
             setUnreadCount(prev => prev + 1);
           }
@@ -71,10 +151,18 @@ export default function FloatingChat() {
       initListener();
     } else {
       initialized = true;
+      unsubBadge = signalRService.onMessage((msg: ChatMessage) => {
+        if (msg.spaceId === GLOBAL_SPACE_ID && !isOpen) {
+          setUnreadCount(prev => prev + 1);
+        }
+      });
     }
 
-    return () => {};
-  }, [isOpen]);
+    return () => {
+      unsubBadge?.();
+      unsubBadge = null;
+    };
+  }, [isOpen, token]);
 
   const connectToHub = async () => {
     if (!token) return;
@@ -82,12 +170,32 @@ export default function FloatingChat() {
     try {
       await signalRService.start(token);
       await signalRService.joinSpace(GLOBAL_SPACE_ID.toString());
-      signalRService.onMessage((msg: ChatMessage) => {
+
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
+        unsubscribeRef.current = null;
+      }
+      unsubscribeRef.current = signalRService.onMessage((msg: ChatMessage) => {
         if (msg.spaceId === GLOBAL_SPACE_ID) {
-          setMessages(prev => [...prev, msg]);
+          setMessages(prev => {
+            // Remove optimistic message with same content if exists (replace with real from server)
+            const filtered = prev.filter(m => 
+              !(m.id < 0 && m.content === msg.content && m.userId === msg.userId)
+            );
+            // Don't add if already exists (by ID)
+            if (filtered.some(m => m.id === msg.id)) {
+              return prev;
+            }
+            return [...filtered, msg];
+          });
         }
       });
-      signalRService.onTyping((data: { userId: number; spaceId: number }) => {
+
+      if (unsubscribeTypingRef.current) {
+        unsubscribeTypingRef.current();
+        unsubscribeTypingRef.current = null;
+      }
+      unsubscribeTypingRef.current = signalRService.onTyping((data: { userId: number; spaceId: number }) => {
         if (data.spaceId === GLOBAL_SPACE_ID) {
           setTypingUsers(prev => {
             if (!prev.includes(data.userId)) {
@@ -98,6 +206,7 @@ export default function FloatingChat() {
           setTimeout(() => setTypingUsers(prev => prev.filter(uid => uid !== data.userId)), 2000);
         }
       });
+
       setConnectionStatus('connected');
     } catch (error) {
       console.error('Failed to connect to chat:', error);
@@ -130,12 +239,34 @@ export default function FloatingChat() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim()) return;
+    const content = newMessage.trim();
+    if (!content) return;
+
+    // Optimistic update: show our own message in the chat immediately so the
+    // user doesn't need to wait for the server to broadcast it back.
+    const tempId = -Date.now();
+    const optimistic: ChatMessage = {
+      id: tempId,
+      spaceId: GLOBAL_SPACE_ID,
+      userId: userId ?? 0,
+      userName: currentUserName(),
+      content,
+      messageType: 'text',
+      createdAt: new Date().toISOString(),
+    };
+    setMessages(prev => [...prev, optimistic]);
+    setNewMessage('');
+    
+    // Scroll to bottom immediately after adding optimistic message
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+    }, 0);
+
     try {
-      await signalRService.sendMessage(GLOBAL_SPACE_ID, newMessage);
-      setNewMessage('');
+      await signalRService.sendMessage(GLOBAL_SPACE_ID, content);
     } catch (error) {
       console.error('Failed to send message:', error);
+      setMessages(prev => prev.filter(m => m.id !== tempId));
     }
   };
 
@@ -158,24 +289,24 @@ export default function FloatingChat() {
 
   return (
     <>
-      {/* Floating Bubble */}
       <button
-        onClick={toggleChat}
-        className="fixed bottom-6 right-6 z-50 group"
-        title="Chat tổng"
+        ref={buttonRef}
+        onClick={() => toggleChat()}
+        onMouseDown={handleMouseDown}
+        style={{ bottom: position.bottom, right: position.right }}
+        className="fixed z-50 group cursor-grab active:cursor-grabbing select-none"
+        title="Chat tổng - Kéo để di chuyển"
       >
-        {/* Unread badge */}
         {unreadCount > 0 && !isOpen && (
           <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-lg animate-bounce-subtle">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
 
-        {/* Chat icon */}
         <div
           className={`w-14 h-14 rounded-full flex items-center justify-center text-white shadow-2xl transition-all duration-300 group-hover:scale-110 ${
             isOpen
-              ? 'bg-red-500 rotate-90'
+              ? 'bg-red-500 rotate-90 cursor-pointer'
               : 'bg-gradient-to-br from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500'
           }`}
         >
@@ -191,17 +322,20 @@ export default function FloatingChat() {
           )}
         </div>
 
-        {/* Pulse ring */}
         {!isOpen && (
           <span className="absolute inset-0 rounded-full bg-gradient-to-br from-indigo-600 to-purple-600 animate-ping opacity-20" />
         )}
       </button>
 
-      {/* Chat Window */}
       {isOpen && (
-        <div className="fixed bottom-20 right-6 z-50 w-80 sm:w-96 animate-slide-in-up">
+        <div 
+          className="fixed z-50 w-80 sm:w-96 animate-slide-in-up"
+          style={{ 
+            bottom: position.bottom + 70, 
+            right: position.right,
+          }}
+        >
           <div className="bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-200/50">
-            {/* Header */}
             <div className="flex items-center justify-between p-4 bg-gradient-to-r from-indigo-600 to-purple-600">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
@@ -221,7 +355,6 @@ export default function FloatingChat() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                {/* Minimize button */}
                 <button
                   onClick={() => setIsMinimized(!isMinimized)}
                   className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white transition-colors"
@@ -243,7 +376,6 @@ export default function FloatingChat() {
                     </svg>
                   )}
                 </button>
-                {/* Close button */}
                 <button
                   onClick={closeChat}
                   className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white transition-colors"
@@ -256,10 +388,8 @@ export default function FloatingChat() {
               </div>
             </div>
 
-            {/* Chat content */}
             {!isMinimized && (
               <>
-                {/* Messages area */}
                 <div
                   className="bg-slate-50 overflow-y-auto"
                   style={{ height: '320px' }}
@@ -275,20 +405,19 @@ export default function FloatingChat() {
                   ) : (
                     <div className="p-3 space-y-2">
                       {(Array.isArray(messages) ? messages : []).map((msg) => {
-                        const isMine = msg.userId === currentUserId();
+                        const isMine = msg.userId === userId;
+                        const isPending = msg.id < 0;
                         return (
                           <div
                             key={msg.id}
                             className={`flex gap-2 ${isMine ? 'flex-row-reverse' : ''}`}
                           >
-                            {/* Avatar */}
                             {!isMine && (
                               <div className="w-7 h-7 rounded-full bg-gradient-to-br from-slate-400 to-slate-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
                                 {msg.userName?.charAt(0).toUpperCase() || '?'}
                               </div>
                             )}
                             <div className={`max-w-[75%] ${isMine ? 'text-right' : ''}`}>
-                              {/* User name & time */}
                               {!isMine && (
                                 <div className="flex items-center gap-2 mb-0.5">
                                   <span className="text-xs font-semibold text-slate-700">{msg.userName}</span>
@@ -297,7 +426,6 @@ export default function FloatingChat() {
                                   </span>
                                 </div>
                               )}
-                              {/* Message bubble */}
                               <div
                                 className={`inline-block px-3 py-1.5 rounded-2xl text-sm ${
                                   isMine
@@ -307,7 +435,6 @@ export default function FloatingChat() {
                               >
                                 {msg.content}
                               </div>
-                              {/* My time */}
                               {isMine && (
                                 <div className="text-[10px] text-slate-400 mt-0.5">
                                   {new Date(msg.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
@@ -318,7 +445,6 @@ export default function FloatingChat() {
                         );
                       })}
 
-                      {/* Typing indicator */}
                       {typingUsers.length > 0 && (
                         <div className="flex items-center gap-2 text-xs text-slate-400 italic">
                           <span className="flex gap-1">
@@ -335,7 +461,6 @@ export default function FloatingChat() {
                   )}
                 </div>
 
-                {/* Input area */}
                 <form onSubmit={handleSendMessage} className="p-3 bg-white border-t border-slate-100">
                   <div className="flex gap-2">
                     <input
@@ -364,7 +489,6 @@ export default function FloatingChat() {
               </>
             )}
 
-            {/* Minimized view - just show title */}
             {isMinimized && (
               <div className="bg-slate-50 px-4 py-3">
                 <p className="text-sm text-slate-500 text-center">Chat tổng - Thu nhỏ</p>

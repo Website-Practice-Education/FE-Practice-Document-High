@@ -23,6 +23,12 @@ import FloatingChat from './components/FloatingChat';
 import AIChatBot from './components/AIChatBot';
 import Moderation from './pages/Moderation';
 import { ThemeProvider } from './contexts/ThemeContext';
+// NEW: Gamification & Social Features
+import Leaderboard from './pages/Leaderboard';
+import Achievements from './pages/Achievements';
+import Progress from './pages/Progress';
+import LiveSessions from './pages/LiveSessions';
+import Notifications from './pages/Notifications';
 
 export default function App() {
   const GOOGLE_CLIENT_ID = (import.meta.env.VITE_GOOGLE_CLIENT_ID || '').trim();
@@ -54,6 +60,12 @@ export default function App() {
             <Route path="/self-study/:id" element={<SelfStudyRoom />} />
             <Route path="/documents" element={<Documents />} />
             <Route path="/moderation" element={<Moderation />} />
+            {/* Gamification & Social Features */}
+            <Route path="/leaderboard" element={<Leaderboard />} />
+            <Route path="/achievements" element={<Achievements />} />
+            <Route path="/progress" element={<Progress />} />
+            <Route path="/live-sessions" element={<LiveSessions />} />
+            <Route path="/notifications" element={<Notifications />} />
           </Route>
         </Routes>
         {/* Floating Chat - Hiển thị trên tất cả các trang */}

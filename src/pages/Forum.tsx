@@ -7,6 +7,7 @@ import DeleteConfirmModal from '../components/DeleteConfirmModal';
 import { useTheme } from '../contexts/ThemeContext';
 
 export default function Forum() {
+  // Initialize as empty array to ensure posts is always an array
   const [posts, setPosts] = useState<ForumPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [posting, setPosting] = useState(false);
@@ -27,18 +28,6 @@ export default function Forum() {
     postId?: number;
   }>({ isOpen: false, type: null, id: null });
   const { isDark } = useTheme();
-
-  const token = localStorage.getItem('token');
-  
-  const currentUserId = (): number | null => {
-    try {
-      if (!token) return null;
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      return parseInt(payload.nameidentifier);
-    } catch {
-      return null;
-    }
-  };
 
   const getUserInfo = (): { name: string; avatar: string } => {
     const userStr = localStorage.getItem('user');
@@ -62,18 +51,30 @@ export default function Forum() {
     try {
       setLoading(true);
       const response = await forumService.getPosts(pageNum, 20);
-      if (response.success) {
+      console.log('[Forum] loadPosts response:', response);
+      const responseData = response?.data;
+      
+      if (response.success && Array.isArray(responseData)) {
         if (pageNum === 1) {
-          setPosts(response.data);
+          setPosts(responseData);
         } else {
-          setPosts(prev => [...prev, ...response.data]);
+          setPosts(prev => [...prev, ...responseData]);
         }
-        setTotalPages(response.pagination.totalPages);
-        setTotalCount(response.pagination.totalCount);
+        setTotalPages(response.pagination?.totalPages || 1);
+        setTotalCount(response.pagination?.totalCount || 0);
+      } else {
+        console.warn('[Forum] Unexpected response format:', response);
+        // Handle non-array response
+        if (pageNum === 1) {
+          setPosts([]);
+        }
       }
     } catch (error) {
       console.error('Failed to load posts:', error);
       toast.error('Không thể tải bài viết');
+      if (pageNum === 1) {
+        setPosts([]);
+      }
     } finally {
       setLoading(false);
     }
@@ -115,18 +116,18 @@ export default function Forum() {
 
     try {
       setPosting(true);
-      let imageUrl: string | undefined;
+      let documentUrl: string | undefined;
 
       if (selectedImage) {
         try {
-          imageUrl = await forumService.uploadImage(selectedImage);
+          documentUrl = await forumService.uploadImage(selectedImage);
         } catch (uploadError) {
           console.error('Image upload failed:', uploadError);
           toast.warning('Upload ảnh thất bại, bài viết sẽ không có ảnh');
         }
       }
 
-      const response = await forumService.createPost(newContent.trim(), imageUrl);
+      const response = await forumService.createPost(newContent.trim(), documentUrl);
       if (response.success) {
         setPosts(prev => [response.data, ...prev]);
         setNewContent('');
@@ -272,7 +273,10 @@ export default function Forum() {
     }
   };
 
-  if (loading && posts.length === 0) return <Loading message="Đang tải diễn đàn..." />;
+  // Ensure posts is always an array for rendering
+  const safePosts = Array.isArray(posts) ? posts : [];
+
+  if (loading && safePosts.length === 0) return <Loading message="Đang tải diễn đàn..." />;
 
   return (
     <div className="max-w-2xl mx-auto animate-fade-in-up">
@@ -365,14 +369,14 @@ export default function Forum() {
 
       {/* Posts */}
       <div className="space-y-4">
-        {posts.length === 0 ? (
+        {safePosts.length === 0 ? (
           <div className="glass-card rounded-2xl p-12 text-center">
             <div className="empty-symbol">📝</div>
             <p className="text-lg font-semibold text-slate-700">Chưa có bài viết nào</p>
             <p className="text-sm text-slate-400 mt-1">Hãy là người đầu tiên đăng bài!</p>
           </div>
         ) : (
-          posts.map((post) => (
+          safePosts.map((post) => (
             <div key={post.id} className="glass-card rounded-2xl overflow-hidden animate-fade-in-up">
               {/* Post Header */}
               <div className="p-4 flex items-center gap-3">
@@ -419,10 +423,10 @@ export default function Forum() {
               </div>
 
               {/* Post Image */}
-              {post.imageUrl && (
+              {post.documentUrl && (
                 <div className="mt-2">
                   <img 
-                    src={post.imageUrl} 
+                    src={post.documentUrl} 
                     alt="" 
                     className="w-full max-h-[500px] object-contain bg-slate-50"
                     onError={(e) => {

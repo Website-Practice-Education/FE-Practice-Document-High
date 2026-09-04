@@ -14,7 +14,8 @@ export interface ForumPost {
   userName: string;
   userAvatar?: string;
   content: string;
-  imageUrl?: string;
+  documentUrl?: string;
+  sharedLink?: string;
   likeCount: number;
   commentCount: number;
   isLiked: boolean;
@@ -47,7 +48,8 @@ export interface ForumPostsResponse {
 
 export interface CreatePostRequest {
   content: string;
-  imageUrl?: string;
+  documentUrl?: string;
+  sharedLink?: string;
 }
 
 class ForumService {
@@ -61,13 +63,13 @@ class ForumService {
     return response.data;
   }
 
-  async createPost(content: string, imageUrl?: string): Promise<{ success: boolean; data: ForumPost; message: string }> {
-    const response = await api.post('/forum/posts', { content, imageUrl });
+  async createPost(content: string, documentUrl?: string, sharedLink?: string): Promise<{ success: boolean; data: ForumPost; message: string }> {
+    const response = await api.post('/forum/posts', { content, documentUrl, sharedLink });
     return response.data;
   }
 
-  async updatePost(id: number, content: string, imageUrl?: string): Promise<{ success: boolean; data: ForumPost; message: string }> {
-    const response = await api.put(`/forum/posts/${id}`, { content, imageUrl });
+  async updatePost(id: number, content: string, documentUrl?: string, sharedLink?: string): Promise<{ success: boolean; data: ForumPost; message: string }> {
+    const response = await api.put(`/forum/posts/${id}`, { content, documentUrl, sharedLink });
     return response.data;
   }
 

@@ -15,6 +15,18 @@ const api = axios.create({
   timeout: Number(import.meta.env.VITE_API_TIMEOUT) || 30000,
 });
 
+// Debug interceptor - log all responses
+api.interceptors.response.use(
+  (response) => {
+    console.log('[API Response]', response.config.url, response.data);
+    return response;
+  },
+  (error) => {
+    console.error('[API Error]', error.config?.url, error.response?.data);
+    return Promise.reject(error);
+  }
+);
+
 // Add auth token to all requests
 api.interceptors.request.use(
   (config) => {

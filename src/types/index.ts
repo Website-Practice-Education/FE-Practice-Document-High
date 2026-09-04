@@ -50,6 +50,9 @@ export interface User {
   id: number;
   email: string;
   fullName?: string;
+  phone?: string;
+  address?: string;
+  dateOfBirth?: string;
   role?: string;
   grade?: number;
   avatarUrl?: string;

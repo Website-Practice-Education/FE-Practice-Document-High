@@ -33,10 +33,15 @@ export default function Users() {
 
   const loadUsers = async () => {
     try {
+      console.log('[DEBUG] Loading users...');
       const data = await UserService.getAll();
+      console.log('[DEBUG] Users loaded:', data);
+      console.log('[DEBUG] Users count:', data.length);
       setUsers(data);
     } catch (error) {
-      console.error('Error loading users:', error);
+      console.error('[DEBUG] Error loading users:', error);
+      console.error('[DEBUG] Error response:', error.response?.data);
+      console.error('[DEBUG] Error status:', error.response?.status);
     } finally {
       setLoading(false);
     }
@@ -200,9 +205,9 @@ export default function Users() {
                 <th>ID</th>
                 <th>Tên</th>
                 <th>Email</th>
+                <th>Điện thoại</th>
                 <th>Vai trò</th>
                 <th>Trạng thái</th>
-                <th>Đăng nhập cuối</th>
                 <th className="text-right">Thao tác</th>
               </tr>
             </thead>
@@ -242,6 +247,7 @@ export default function Users() {
                         </div>
                       </td>
                       <td>{user.email}</td>
+                      <td className="text-slate-600">{user.phone || '-'}</td>
                       <td><span className={role.className}>{role.label}</span></td>
                       <td>
                         <button
@@ -250,9 +256,6 @@ export default function Users() {
                         >
                           {user.isActive ? 'Hoạt động' : 'Ngừng'}
                         </button>
-                      </td>
-                      <td>
-                        {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleDateString('vi-VN') : 'Chưa đăng nhập'}
                       </td>
                       <td className="text-right">
                         <button onClick={() => handleEdit(user)} className="btn-ghost text-indigo-600">Sửa</button>
