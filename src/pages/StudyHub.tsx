@@ -376,6 +376,18 @@ export default function StudyHub() {
     }
   };
 
+  const handleUploadMusic = async (file: File, title: string, artist?: string) => {
+    if (!selectedRoom) return;
+    try {
+      const track = await musicService.upload(selectedRoom.id, file, title, artist);
+      setUploadedTracks(prev => [track, ...prev]);
+      setShowAddMusicModal(false);
+    } catch (error) {
+      console.error('Failed to upload music:', error);
+      alert('Không thể upload nhạc. Vui lòng thử lại.');
+    }
+  };
+
   const handleUpdateTrack = async (trackId: number, title: string, artist?: string) => {
     try {
       const updated = await musicService.updateTrack(trackId, { title, artist });
@@ -1042,32 +1054,9 @@ export default function StudyHub() {
                   
                   {uploadedTracks.length > 0 && (
                     <div className="mt-6 pt-4 border-t border-white/10">
-                      {/* Debug info */}
-                      <div className="text-xs text-white/40 mb-2">
-                        📊 Debug: {uploadedTracks.length} tracks | currentTrack: {currentTrack?.title || 'none'} | isPlaying: {isPlaying.toString()}
-                      </div>
-                      <div className="flex items-center gap-4">
-                        {/* Play First Track Button - Always visible when there are tracks */}
-                        <button 
-                          onClick={() => {
-                            console.log('[Music] Play button clicked, currentTrack:', currentTrack, 'uploadedTracks:', uploadedTracks);
-                            if (!currentTrack && uploadedTracks.length > 0) {
-                              playTrack(uploadedTracks[0]);
-                            } else {
-                              togglePlay();
-                            }
-                          }} 
-                          className="w-14 h-14 rounded-full bg-gradient-to-r from-pink-500 to-purple-500 text-white flex items-center justify-center text-2xl hover:scale-110 shadow-lg transition-all"
-                        >
-                          {currentTrack && isPlaying ? '⏸' : '▶'}
-                        </button>
-                        <div className="flex items-center gap-2">
-                          <span className="text-white/60">🔊</span>
-                          <input type="range" min="0" max="100" value={volume} onChange={(e) => { setVolume(parseInt(e.target.value)); if (audioRef.current) audioRef.current.volume = parseInt(e.target.value) / 100; }} className="w-24 accent-white" />
-                        </div>
-                        {currentTrack && (
-                          <span className="text-white text-sm truncate flex-1">{currentTrack.title}</span>
-                        )}
+                      <div className="flex items-center gap-2">
+                        <span className="text-white/60">🔊</span>
+                        <input type="range" min="0" max="100" value={volume} onChange={(e) => { setVolume(parseInt(e.target.value)); if (audioRef.current) audioRef.current.volume = parseInt(e.target.value) / 100; }} className="w-24 accent-white" />
                       </div>
                     </div>
                   )}
@@ -1292,10 +1281,11 @@ export default function StudyHub() {
         
         {/* Add Music Modal */}
         {showAddMusicModal && (
-          <AddMusicModal 
-            onClose={() => setShowAddMusicModal(false)} 
+          <AddMusicModal
+            onClose={() => setShowAddMusicModal(false)}
             onAddFromLink={handleAddMusicFromLink}
             onAddFromYouTube={handleAddMusicFromYouTube}
+            onUpload={handleUploadMusic}
           />
         )}
 
@@ -1600,12 +1590,14 @@ function AddMusicModal({
   onClose, 
   onAddFromLink, 
   onAddFromYouTube,
+  onUpload,
   editingTrack,
   onUpdateTrack,
 }: { 
   onClose: () => void; 
   onAddFromLink: (title: string, url: string, artist?: string) => void;
   onAddFromYouTube?: (url: string) => void;
+  onUpload?: (file: File, title: string, artist?: string) => void;
   editingTrack?: MusicTrack | null;
   onUpdateTrack?: (trackId: number, title: string, artist?: string) => void;
 }) {
@@ -1615,6 +1607,8 @@ function AddMusicModal({
   const [addTab, setAddTab] = useState<MusicAddTab>('link');
   const [isYouTube, setIsYouTube] = useState(false);
   const [youTubePreview, setYouTubePreview] = useState<{ videoId: string; thumbnail: string } | null>(null);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Check if URL is YouTube
   useEffect(() => {
@@ -1636,6 +1630,8 @@ function AddMusicModal({
   const handleSubmit = () => {
     if (editingTrack && onUpdateTrack) {
       onUpdateTrack(editingTrack.id, title || editingTrack.title, artist || undefined);
+    } else if (addTab === 'upload' && uploadFile && onUpload) {
+      onUpload(uploadFile, title || uploadFile.name, artist || undefined);
     } else if (isYouTube && onAddFromYouTube) {
       onAddFromYouTube(url);
     } else if (url) {
@@ -1699,6 +1695,12 @@ function AddMusicModal({
             className={`px-4 py-2 rounded-full text-sm font-semibold ${addTab === 'youtube' ? 'bg-red-500 text-white' : 'bg-white/10 text-white/60'}`}
           >
             📺 YouTube
+          </button>
+          <button 
+            onClick={() => { setAddTab('upload'); setUploadFile(null); }}
+            className={`px-4 py-2 rounded-full text-sm font-semibold ${addTab === 'upload' ? 'bg-green-500 text-white' : 'bg-white/10 text-white/60'}`}
+          >
+            📤 Từ máy
           </button>
         </div>
         
@@ -1773,16 +1775,52 @@ function AddMusicModal({
               )}
             </>
           )}
+
+          {addTab === 'upload' && (
+            <>
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className="p-8 rounded-xl border-2 border-dashed border-white/20 hover:border-white/40 cursor-pointer text-center transition-all"
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="audio/*"
+                  onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+                  className="hidden"
+                />
+                <div className="text-4xl mb-2">{uploadFile ? '🎵' : '📁'}</div>
+                <p className="text-white/60 text-sm">
+                  {uploadFile ? uploadFile.name : 'Click để chọn file nhạc'}
+                </p>
+                <p className="text-white/40 text-xs mt-1">MP3, WAV, OGG, M4A</p>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-white/80 mb-1">Tên bài hát</label>
+                <input 
+                  type="text" 
+                  value={title} 
+                  onChange={(e) => setTitle(e.target.value)} 
+                  className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-2 text-white" 
+                  placeholder={uploadFile ? '' : 'VD: Summer Vibes'} 
+                />
+              </div>
+            </>
+          )}
         </div>
         
         <div className="flex justify-end gap-3 mt-6">
           <button onClick={onClose} className="px-4 py-2 rounded-full bg-white/10 text-white/80 hover:bg-white/20">Hủy</button>
           <button 
             onClick={handleSubmit} 
-            disabled={!url || (addTab === 'link' && isYouTube)} 
+            disabled={
+              (addTab === 'link' && !url) || 
+              (addTab === 'youtube' && !url) ||
+              (addTab === 'upload' && !uploadFile)
+            } 
             className="px-6 py-2 rounded-full bg-pink-500 text-white font-semibold hover:bg-pink-600 disabled:opacity-40"
           >
-            {addTab === 'youtube' ? '📺 Thêm YouTube' : '🎵 Thêm nhạc'}
+            {addTab === 'youtube' ? '📺 Thêm YouTube' : addTab === 'upload' ? '📤 Upload' : '🎵 Thêm nhạc'}
           </button>
         </div>
       </div>

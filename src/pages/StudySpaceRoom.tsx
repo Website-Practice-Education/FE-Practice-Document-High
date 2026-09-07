@@ -48,6 +48,9 @@ export default function StudySpaceRoom() {
   const [uploadedFiles, setUploadedFiles] = useState<SharedFile[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
+  // File preview state
+  const [previewFile, setPreviewFile] = useState<SharedFile | null>(null);
+  
   // Notes state
   const [notes, setNotes] = useState<{ id: string; content: string; createdAt: string }[]>([]);
   const [newNote, setNewNote] = useState('');
@@ -430,6 +433,19 @@ export default function StudySpaceRoom() {
     window.open(url, '_blank');
   };
 
+  const handlePreviewFile = (file: SharedFile) => {
+    setPreviewFile(file);
+  };
+
+  const closePreview = () => {
+    setPreviewFile(null);
+  };
+
+  const getPreviewUrl = (file: SharedFile) => {
+    const token = localStorage.getItem('token');
+    return `${apiUrl}/room/files/${file.id}/download?access_token=${token}`;
+  };
+
   // Theme handlers
   const handleThemeChange = async (theme: ThemeType) => {
     setCurrentTheme(theme);
@@ -628,6 +644,16 @@ export default function StudySpaceRoom() {
           onClose={() => setShowAddMusicModal(false)}
           onAddFromLink={handleAddMusicFromLink}
           onUpload={handleUploadMusic}
+        />
+      )}
+
+      {/* File Preview Modal */}
+      {previewFile && (
+        <FilePreviewModal
+          file={previewFile}
+          previewUrl={getPreviewUrl(previewFile)}
+          onClose={closePreview}
+          onDownload={() => handleDownloadFile(previewFile)}
         />
       )}
 
@@ -884,6 +910,15 @@ export default function StudySpaceRoom() {
                               {formatFileSize(file.fileSize)} • {file.uploaderName || 'You'}
                             </p>
                           </div>
+                          {(file.fileType === 'image' || file.fileType === 'video' || file.fileType === 'audio' || file.fileType === 'pdf') && (
+                            <button
+                              onClick={() => handlePreviewFile(file)}
+                              className="w-10 h-10 rounded-full bg-purple-500/20 text-purple-400 flex items-center justify-center hover:bg-purple-500/30 transition-all"
+                              title="Preview"
+                            >
+                              PV
+                            </button>
+                          )}
                           <button
                             onClick={() => handleDownloadFile(file)}
                             className="w-10 h-10 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center hover:bg-blue-500/30 transition-all"
@@ -1112,6 +1147,129 @@ export default function StudySpaceRoom() {
               </div>
             ))}
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// File Preview Modal Component
+function FilePreviewModal({ file, previewUrl, onClose, onDownload }: {
+  file: SharedFile;
+  previewUrl: string;
+  onClose: () => void;
+  onDownload: () => void;
+}) {
+  const [loading, setLoading] = useState(true);
+  
+  const formatFileSize = (bytes: number) => {
+    if (bytes > 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  };
+  
+  const renderPreview = () => {
+    switch (file.fileType) {
+      case 'image':
+        return (
+          <img
+            src={previewUrl}
+            alt={file.originalName}
+            className="max-w-full max-h-[60vh] object-contain rounded-lg"
+            onLoad={() => setLoading(false)}
+            onError={() => setLoading(false)}
+          />
+        );
+      case 'video':
+        return (
+          <video
+            src={previewUrl}
+            controls
+            className="max-w-full max-h-[60vh] rounded-lg"
+            onCanPlay={() => setLoading(false)}
+            onError={() => setLoading(false)}
+          >
+            Your browser does not support the video tag.
+          </video>
+        );
+      case 'audio':
+        return (
+          <div className="w-full max-w-md">
+            <audio
+              src={previewUrl}
+              controls
+              className="w-full"
+              onCanPlay={() => setLoading(false)}
+              onError={() => setLoading(false)}
+            >
+              Your browser does not support the audio element.
+            </audio>
+          </div>
+        );
+      case 'pdf':
+        return (
+          <iframe
+            src={previewUrl}
+            className="w-full h-[60vh] rounded-lg border-0"
+            title={file.originalName}
+            onLoad={() => setLoading(false)}
+            onError={() => setLoading(false)}
+          />
+        );
+      default:
+        return (
+          <div className="text-center py-12">
+            <div className="text-5xl mb-4">File</div>
+            <p className="text-white/60">Khong the xem truoc loai file nay</p>
+            <p className="text-white/40 text-sm mt-2">{file.originalName}</p>
+          </div>
+        );
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div 
+        className="glass-card rounded-2xl p-6 w-full max-w-4xl max-h-[90vh] overflow-hidden animate-scale-in flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex-1 min-w-0">
+            <h2 className="text-xl font-bold text-white truncate">{file.originalName}</h2>
+            <p className="text-white/50 text-sm">{formatFileSize(file.fileSize)} • {file.uploaderName || 'Unknown'}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-10 h-10 rounded-full bg-white/10 text-white/80 hover:bg-white/20 flex items-center justify-center transition-all ml-4"
+          >
+            X
+          </button>
+        </div>
+        
+        {/* Preview Content */}
+        <div className="flex-1 overflow-auto flex items-center justify-center bg-black/20 rounded-xl p-4 mb-4">
+          {loading && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="animate-spin w-8 h-8 border-2 border-white border-t-transparent rounded-full" />
+            </div>
+          )}
+          {renderPreview()}
+        </div>
+        
+        {/* Actions */}
+        <div className="flex justify-end gap-3">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded-xl bg-white/10 text-white/80 hover:bg-white/20 transition-all"
+          >
+            Dong
+          </button>
+          <button
+            onClick={onDownload}
+            className="px-6 py-2 rounded-xl bg-blue-500 text-white font-semibold hover:bg-blue-600 transition-all flex items-center gap-2"
+          >
+            <span>DL</span> Tai ve
+          </button>
         </div>
       </div>
     </div>
