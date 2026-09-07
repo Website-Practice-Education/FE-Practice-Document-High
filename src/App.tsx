@@ -16,6 +16,7 @@ import ResetPassword from './pages/ResetPassword';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Landing from './pages/Landing';
+import GoogleCallback from './pages/GoogleCallback';
 import Documents from './pages/Documents';
 import FloatingChat from './components/FloatingChat';
 import AIChatBot from './components/AIChatBot';
@@ -40,6 +41,7 @@ export default function App() {
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/google-callback" element={<GoogleCallback />} />
           <Route path="/forgot-password" element={<ForgotPassword onBack={() => window.history.back()} onResetPassword={() => {}} />} />
           <Route path="/reset-password" element={<ResetPassword />} />
 
