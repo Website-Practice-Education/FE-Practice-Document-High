@@ -88,6 +88,7 @@ export default function StudyHub() {
   const [editingTrack, setEditingTrack] = useState<MusicTrack | null>(null);
   const [musicTab, setMusicTab] = useState<'playlist' | 'library'>('library');
   const [currentPlaylist, setCurrentPlaylist] = useState(DEMO_PLAYLISTS[0]);
+  const [showYouTubePlayer, setShowYouTubePlayer] = useState(false);
   
   // ===== STATE: Room Detail - Files =====
   const [uploadedFiles, setUploadedFiles] = useState<SharedFile[]>([]);
@@ -124,6 +125,7 @@ export default function StudyHub() {
   // ===== REFS =====
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const isPlayInProgressRef = useRef(false); // Prevent race condition between play/pause
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const token = localStorage.getItem('token');
   const apiUrl = import.meta.env.VITE_API_URL || '';
@@ -402,47 +404,86 @@ export default function StudyHub() {
   };
   
   const playTrack = (track: MusicTrack) => {
+    console.log('[Music] Attempting to play track:', track);
+    
     if (audioRef.current) audioRef.current.pause();
     
     setCurrentTrack(track);
     setIsPlaying(false); // Reset initially, set to true only when play succeeds
     
-    const handlePlayError = (error: Error) => {
-      console.error('Failed to play audio:', error);
+    const handlePlayError = (error: Error, url: string) => {
+      console.error('[Music] Play error:', error, 'URL:', url);
+      isPlayInProgressRef.current = false;
+      // Ignore AbortError - this happens when user clicks play/pause quickly
+      if (error.name === 'AbortError') {
+        console.log('[Music] Play interrupted by user action (normal behavior)');
+        return;
+      }
+      console.error('[Music] Failed to play audio:', error);
       setIsPlaying(false);
-      setCurrentTrack(null);
-      setCurrentMusicUrl(null);
-      alert('Không thể phát nhạc. Vui lòng kiểm tra lại link hoặc file.');
+      alert(`Không thể phát nhạc!\n\nLỗi: ${error.message}\n\nURL: ${url}\n\nCó thể do:\n- File không tồn tại\n- Lỗi CORS\n- Link nhạc hỏng`);
     };
     
     if (track.sourceType === 'youtube' && track.externalUrl) {
-      // YouTube - open in modal or embed
+      // YouTube - show embedded player
       const videoId = extractYouTubeId(track.externalUrl);
       if (videoId) {
+        console.log('[Music] YouTube detected, showing player for:', videoId);
         setCurrentMusicUrl(`https://www.youtube.com/embed/${videoId}?autoplay=1&controls=1&rel=0`);
+        setShowYouTubePlayer(true);
+        setIsPlaying(true);
+      } else {
+        alert('Link YouTube không hợp lệ!');
       }
     } else if (track.sourceType === 'link' && track.externalUrl) {
       // External link - play audio
+      // Prevent race condition: if play is already in progress, ignore this call
+      if (isPlayInProgressRef.current) {
+        console.log('[Music] Play already in progress, ignoring');
+        return;
+      }
+      isPlayInProgressRef.current = true;
+      console.log('[Music] Playing external link:', track.externalUrl);
       const audio = new Audio();
       audio.src = track.externalUrl;
       audio.volume = volume / 100;
       audioRef.current = audio;
       
       audio.play().then(() => {
+        isPlayInProgressRef.current = false;
         setIsPlaying(true);
         setCurrentMusicUrl(track.externalUrl);
-      }).catch(handlePlayError);
+        console.log('[Music] Successfully playing external link');
+      }).catch((error) => {
+        handlePlayError(error, track.externalUrl);
+      });
     } else if (track.filePath) {
-      // Uploaded file
+      // Uploaded file - use base URL without /api for static files
+      // Prevent race condition: if play is already in progress, ignore this call
+      if (isPlayInProgressRef.current) {
+        console.log('[Music] Play already in progress, ignoring');
+        return;
+      }
+      isPlayInProgressRef.current = true;
+      const baseUrl = apiUrl.replace(/\/api$/, ''); // Remove /api suffix
+      const fullUrl = `${baseUrl}${track.filePath}`;
+      console.log('[Music] Playing uploaded file:', fullUrl);
       const audio = new Audio();
-      audio.src = `${apiUrl}${track.filePath}`;
+      audio.src = fullUrl;
       audio.volume = volume / 100;
       audioRef.current = audio;
       
       audio.play().then(() => {
+        isPlayInProgressRef.current = false;
         setIsPlaying(true);
-        setCurrentMusicUrl(`${apiUrl}${track.filePath}`);
-      }).catch(handlePlayError);
+        setCurrentMusicUrl(fullUrl);
+        console.log('[Music] Successfully playing uploaded file');
+      }).catch((error) => {
+        handlePlayError(error, fullUrl);
+      });
+    } else {
+      console.error('[Music] No valid source found for track:', track);
+      alert('Không tìm thấy nguồn nhạc cho bài hát này.');
     }
   };
   
@@ -452,17 +493,36 @@ export default function StudyHub() {
       return; 
     }
     if (audioRef.current) {
+      // If current track is YouTube, close the player when pausing
+      if (currentTrack?.sourceType === 'youtube') {
+        setShowYouTubePlayer(false);
+        setCurrentMusicUrl(null);
+        setCurrentTrack(null);
+        setIsPlaying(false);
+        return;
+      }
+      
       if (isPlaying) {
         audioRef.current.pause();
         setIsPlaying(false);
       } else {
+        // Prevent race condition: if play is already in progress, ignore this call
+        if (isPlayInProgressRef.current) {
+          return;
+        }
+        isPlayInProgressRef.current = true;
         // Try to play, handle errors
         audioRef.current.play().then(() => {
+          isPlayInProgressRef.current = false;
           setIsPlaying(true);
         }).catch((error) => {
-          console.error('Failed to resume audio:', error);
-          setIsPlaying(false);
-          alert('Không thể phát nhạc. Vui lòng thử lại.');
+          isPlayInProgressRef.current = false;
+          // Ignore AbortError - happens when user clicks play/pause quickly
+          if (error.name !== 'AbortError') {
+            console.error('Failed to resume audio:', error);
+            setIsPlaying(false);
+            alert('Không thể phát nhạc. Vui lòng thử lại.');
+          }
         });
       }
     }
@@ -888,8 +948,15 @@ export default function StudyHub() {
                               </div>
                             )}
                             
-                            {/* Play Button */}
-                            <button onClick={() => playTrack(track)} className="w-10 h-10 rounded-full bg-white/20 text-white flex items-center justify-center hover:bg-white/30 flex-shrink-0">
+                            {/* Play Button - Works for all track types */}
+                            <button 
+                              onClick={() => {
+                                console.log('[Music] Play button clicked for track:', track);
+                                playTrack(track);
+                              }} 
+                              className="w-10 h-10 rounded-full bg-gradient-to-r from-pink-500 to-purple-500 text-white flex items-center justify-center hover:scale-110 transition-all flex-shrink-0 shadow-lg"
+                              title={track.sourceType === 'youtube' ? 'Phát YouTube' : 'Phát nhạc'}
+                            >
                               {currentTrack?.id === track.id && isPlaying ? '⏸' : '▶'}
                             </button>
                             
@@ -944,14 +1011,63 @@ export default function StudyHub() {
                     </div>
                   )}
                   
+                  {/* YouTube Player */}
+                  {showYouTubePlayer && currentMusicUrl && currentMusicUrl.includes('youtube.com/embed') && (
+                    <div className="mb-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-white font-medium">📺 YouTube Player</span>
+                        <button 
+                          onClick={() => {
+                            setShowYouTubePlayer(false);
+                            setCurrentMusicUrl(null);
+                            setCurrentTrack(null);
+                            setIsPlaying(false);
+                          }}
+                          className="text-white/60 hover:text-white text-sm"
+                        >
+                          ✕ Đóng
+                        </button>
+                      </div>
+                      <div className="aspect-video rounded-xl overflow-hidden bg-black">
+                        <iframe
+                          src={currentMusicUrl}
+                          className="w-full h-full"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                          title="YouTube Video"
+                        />
+                      </div>
+                    </div>
+                  )}
+                  
                   {uploadedTracks.length > 0 && (
-                    <div className="mt-6 pt-4 border-t border-white/10 flex items-center gap-4">
-                      <button onClick={togglePlay} className="w-12 h-12 rounded-full bg-white text-slate-800 flex items-center justify-center text-xl hover:scale-110 shadow-lg">
-                        {isPlaying ? '⏸' : '▶'}
-                      </button>
-                      <div className="flex items-center gap-2">
-                        <span className="text-white/60">🔊</span>
-                        <input type="range" min="0" max="100" value={volume} onChange={(e) => { setVolume(parseInt(e.target.value)); if (audioRef.current) audioRef.current.volume = parseInt(e.target.value) / 100; }} className="w-24 accent-white" />
+                    <div className="mt-6 pt-4 border-t border-white/10">
+                      {/* Debug info */}
+                      <div className="text-xs text-white/40 mb-2">
+                        📊 Debug: {uploadedTracks.length} tracks | currentTrack: {currentTrack?.title || 'none'} | isPlaying: {isPlaying.toString()}
+                      </div>
+                      <div className="flex items-center gap-4">
+                        {/* Play First Track Button - Always visible when there are tracks */}
+                        <button 
+                          onClick={() => {
+                            console.log('[Music] Play button clicked, currentTrack:', currentTrack, 'uploadedTracks:', uploadedTracks);
+                            if (!currentTrack && uploadedTracks.length > 0) {
+                              playTrack(uploadedTracks[0]);
+                            } else {
+                              togglePlay();
+                            }
+                          }} 
+                          className="w-14 h-14 rounded-full bg-gradient-to-r from-pink-500 to-purple-500 text-white flex items-center justify-center text-2xl hover:scale-110 shadow-lg transition-all"
+                        >
+                          {currentTrack && isPlaying ? '⏸' : '▶'}
+                        </button>
+                        <div className="flex items-center gap-2">
+                          <span className="text-white/60">🔊</span>
+                          <input type="range" min="0" max="100" value={volume} onChange={(e) => { setVolume(parseInt(e.target.value)); if (audioRef.current) audioRef.current.volume = parseInt(e.target.value) / 100; }} className="w-24 accent-white" />
+                        </div>
+                        {currentTrack && (
+                          <span className="text-white text-sm truncate flex-1">{currentTrack.title}</span>
+                        )}
                       </div>
                     </div>
                   )}

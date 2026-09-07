@@ -152,7 +152,9 @@ export const musicService = {
     }
     if (track.filePath) {
       const token = localStorage.getItem('token');
-      return `${import.meta.env.VITE_API_URL || ''}${track.filePath}?access_token=${token}`;
+      // Remove /api suffix from API_URL for static file access
+      const baseUrl = (import.meta.env.VITE_API_URL || '').replace(/\/api$/, '');
+      return `${baseUrl}${track.filePath}?access_token=${token}`;
     }
     return track.externalUrl || '';
   },

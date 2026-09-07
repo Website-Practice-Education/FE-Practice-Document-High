@@ -64,6 +64,7 @@ export default function StudySpaceRoom() {
   const unsubMsgRef = useRef<(() => void) | null>(null);
   const unsubTypingRef = useRef<(() => void) | null>(null);
   const isConnectedRef = useRef(false);
+  const isPlayInProgressRef = useRef(false); // Prevent race condition between play/pause
   const apiUrl = import.meta.env.VITE_API_URL || '';
 
   const token = localStorage.getItem('token');
@@ -336,17 +337,40 @@ export default function StudySpaceRoom() {
       audioRef.current.pause();
     }
     
+    setIsPlaying(false); // Reset initially
+    
+    // Prevent race condition: if play is already in progress, ignore this call
+    if (isPlayInProgressRef.current) {
+      return;
+    }
+    isPlayInProgressRef.current = true;
+    
+    const handlePlayError = (error: Error) => {
+      isPlayInProgressRef.current = false;
+      // Ignore AbortError - happens when user clicks play/pause quickly
+      if (error.name !== 'AbortError') {
+        console.error('Failed to play audio:', error);
+        setIsPlaying(false);
+        alert('Không thể phát nhạc. Vui lòng kiểm tra lại link hoặc file.');
+      }
+    };
+    
     const audio = new Audio();
     if (track.sourceType === 'link' && track.externalUrl) {
       audio.src = track.externalUrl;
     } else if (track.filePath) {
-      audio.src = `${apiUrl}${track.filePath}`;
+      // Remove /api suffix for static file access
+      const baseUrl = apiUrl.replace(/\/api$/, '');
+      audio.src = `${baseUrl}${track.filePath}`;
     }
     audio.volume = volume / 100;
     audioRef.current = audio;
-    audio.play();
-    setIsPlaying(true);
-    setCurrentMusicUrl(track.externalUrl || (track.filePath ? `${apiUrl}${track.filePath}` : null));
+    
+    audio.play().then(() => {
+      isPlayInProgressRef.current = false;
+      setIsPlaying(true);
+      setCurrentMusicUrl(track.externalUrl || (track.filePath ? `${apiUrl}${track.filePath}` : null));
+    }).catch(handlePlayError);
   };
 
   const togglePlay = () => {
@@ -357,10 +381,25 @@ export default function StudySpaceRoom() {
     if (audioRef.current) {
       if (isPlaying) {
         audioRef.current.pause();
+        setIsPlaying(false);
       } else {
-        audioRef.current.play();
+        // Prevent race condition: if play is already in progress, ignore this call
+        if (isPlayInProgressRef.current) {
+          return;
+        }
+        isPlayInProgressRef.current = true;
+        audioRef.current.play().then(() => {
+          isPlayInProgressRef.current = false;
+          setIsPlaying(true);
+        }).catch((error) => {
+          isPlayInProgressRef.current = false;
+          // Ignore AbortError - happens when user clicks play/pause quickly
+          if (error.name !== 'AbortError') {
+            console.error('Failed to resume audio:', error);
+            setIsPlaying(false);
+          }
+        });
       }
-      setIsPlaying(!isPlaying);
     }
   };
 
@@ -397,7 +436,7 @@ export default function StudySpaceRoom() {
     if (theme !== 'custom') {
       setCustomBgImage(null);
       try {
-        await roomSettingsService.updateBackground(parseInt(id!), 'theme', theme);
+        await roomSettingsService.updateBackground(parseInt(id!), 'theme', theme, undefined);
       } catch (error) {
         console.error('Failed to save theme:', error);
       }
@@ -410,7 +449,7 @@ export default function StudySpaceRoom() {
 
     try {
       const result = await roomSettingsService.uploadBackgroundImage(parseInt(id!), file);
-      setCustomBgImage(`${apiUrl}${result.imageUrl}`);
+      setCustomBgImage(`${apiUrl}${result.backgroundImagePath || result.imageUrl}`);
       setCurrentTheme('custom');
     } catch (error) {
       console.error('Failed to upload background:', error);

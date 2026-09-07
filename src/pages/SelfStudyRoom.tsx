@@ -63,6 +63,7 @@ export default function SelfStudyRoom() {
   const [pomodoroMode, setPomodoroMode] = useState<'work' | 'break'>('work');
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const isPlayInProgressRef = useRef(false); // Prevent race condition between play/pause
   const token = localStorage.getItem('token');
   const apiUrl = import.meta.env.VITE_API_URL || '';
 
@@ -242,17 +243,40 @@ export default function SelfStudyRoom() {
       audioRef.current.pause();
     }
     
+    setIsPlaying(false); // Reset initially
+    
+    // Prevent race condition: if play is already in progress, ignore this call
+    if (isPlayInProgressRef.current) {
+      return;
+    }
+    isPlayInProgressRef.current = true;
+    
+    const handlePlayError = (error: Error) => {
+      isPlayInProgressRef.current = false;
+      // Ignore AbortError - happens when user clicks play/pause quickly
+      if (error.name !== 'AbortError') {
+        console.error('Failed to play audio:', error);
+        setIsPlaying(false);
+        alert('Không thể phát nhạc. Vui lòng kiểm tra lại link hoặc file.');
+      }
+    };
+    
     const audio = new Audio();
     if (track.sourceType === 'link' && track.externalUrl) {
       audio.src = track.externalUrl;
     } else if (track.filePath) {
-      audio.src = `${apiUrl}${track.filePath}`;
+      // Remove /api suffix for static file access
+      const baseUrl = apiUrl.replace(/\/api$/, '');
+      audio.src = `${baseUrl}${track.filePath}`;
     }
     audio.volume = volume / 100;
     audioRef.current = audio;
-    audio.play();
-    setIsPlaying(true);
-    setCurrentMusicUrl(track.externalUrl || (track.filePath ? `${apiUrl}${track.filePath}` : null));
+    
+    audio.play().then(() => {
+      isPlayInProgressRef.current = false;
+      setIsPlaying(true);
+      setCurrentMusicUrl(track.externalUrl || (track.filePath ? `${apiUrl}${track.filePath}` : null));
+    }).catch(handlePlayError);
   };
 
   const togglePlay = () => {
@@ -263,10 +287,25 @@ export default function SelfStudyRoom() {
     if (audioRef.current) {
       if (isPlaying) {
         audioRef.current.pause();
+        setIsPlaying(false);
       } else {
-        audioRef.current.play();
+        // Prevent race condition: if play is already in progress, ignore this call
+        if (isPlayInProgressRef.current) {
+          return;
+        }
+        isPlayInProgressRef.current = true;
+        audioRef.current.play().then(() => {
+          isPlayInProgressRef.current = false;
+          setIsPlaying(true);
+        }).catch((error) => {
+          isPlayInProgressRef.current = false;
+          // Ignore AbortError - happens when user clicks play/pause quickly
+          if (error.name !== 'AbortError') {
+            console.error('Failed to resume audio:', error);
+            setIsPlaying(false);
+          }
+        });
       }
-      setIsPlaying(!isPlaying);
     }
   };
 
@@ -303,7 +342,7 @@ export default function SelfStudyRoom() {
     if (theme !== 'custom') {
       setCustomBgImage(null);
       try {
-        await roomSettingsService.updateBackground(parseInt(id!), 'theme', theme);
+        await roomSettingsService.updateBackground(parseInt(id!), 'theme', theme, undefined);
       } catch (error) {
         console.error('Failed to save theme:', error);
       }
@@ -316,7 +355,7 @@ export default function SelfStudyRoom() {
 
     try {
       const result = await roomSettingsService.uploadBackgroundImage(parseInt(id!), file);
-      setCustomBgImage(`${apiUrl}${result.imageUrl}`);
+      setCustomBgImage(`${apiUrl}${result.backgroundImagePath || result.imageUrl}`);
       setCurrentTheme('custom');
     } catch (error) {
       console.error('Failed to upload background:', error);
@@ -368,18 +407,16 @@ export default function SelfStudyRoom() {
       className="min-h-screen animate-fade-in-up relative overflow-hidden"
       style={{
         background: customBgImage 
-          ? `url(${customBgImage}) center/cover no-repeat`
-          : theme 
-            ? `linear-gradient(135deg, var(--tw-gradient-stops))`
-            : undefined,
+          ? `url(${customBgImage}) center/cover no-repeat fixed`
+          : undefined,
       }}
     >
       {/* Audio element */}
       <audio ref={audioRef} onEnded={() => setIsPlaying(false)} />
 
       {/* Dynamic Background Layers */}
-      {!customBgImage && (
-        <div className={`absolute inset-0 ${theme ? `bg-gradient-to-br ${theme.bg}` : 'bg-slate-900'} transition-all duration-1000`}>
+      {!customBgImage && theme && (
+        <div className={`absolute inset-0 bg-gradient-to-br ${theme.bg} transition-all duration-1000`}>
           {/* Animated particles */}
           <div className="absolute inset-0 overflow-hidden">
             {[...Array(20)].map((_, i) => (
