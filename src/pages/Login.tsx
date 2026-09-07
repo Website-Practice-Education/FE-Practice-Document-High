@@ -152,14 +152,15 @@ export default function Login({ onLoginSuccess }: LoginProps) {
             </div>
 
             {hasGoogleClient ? (
-              <GoogleLogin
-                onSuccess={handleGoogleSuccess}
-                onError={handleGoogleError}
-                theme={isDark ? 'filled_black' : 'outline'}
-                size="large"
-                shape="rectangular"
-                width="100%"
-              />
+              <div className="w-full">
+                <GoogleLogin
+                  onSuccess={handleGoogleSuccess}
+                  onError={handleGoogleError}
+                  theme={isDark ? 'filled_black' : 'outline'}
+                  size="large"
+                  shape="rectangular"
+                />
+              </div>
             ) : (
               <div className={`rounded-xl border px-4 py-3 text-center text-sm ${isDark ? 'border-slate-700 bg-slate-900/40 text-slate-400' : 'border-slate-200 bg-slate-50 text-slate-500'}`}>
                 Google login chưa được cấu hình.
