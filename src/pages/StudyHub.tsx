@@ -1011,11 +1011,29 @@ export default function StudyHub() {
                     })}
                     <div ref={messagesEndRef} />
                   </div>
-                  <form onSubmit={handleSendMessage} className="p-4 border-t border-white/10 bg-white/5">
-                    <div className="flex gap-3">
-                      <input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="Nhan gi do..." className="flex-1 bg-white/10 border border-white/20 rounded-full px-5 py-3 text-white placeholder-white/40 focus:outline-none" />
-                      <button type="submit" disabled={!newMessage.trim()} className="w-12 h-12 rounded-full bg-gradient-to-r from-pink-500 to-rose-500 text-white flex items-center justify-center hover:scale-110 transition-all disabled:opacity-40">➤</button>
-                    </div>
+                  <form onSubmit={handleSendMessage} className="flex gap-3 p-4 border-t border-white/10 bg-white/5">
+                    <input 
+                      type="text" 
+                      value={newMessage} 
+                      onChange={(e) => setNewMessage(e.target.value)} 
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          if (newMessage.trim()) {
+                            handleSendMessage(e as unknown as React.FormEvent);
+                          }
+                        }
+                      }}
+                      placeholder="Nhắn gì đó..." 
+                      className="flex-1 bg-white/10 border border-white/20 rounded-full px-5 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-pink-500/50"
+                    />
+                    <button 
+                      type="submit" 
+                      disabled={!newMessage.trim()} 
+                      className="w-12 h-12 rounded-full bg-gradient-to-r from-pink-500 to-rose-500 text-white flex items-center justify-center hover:scale-110 transition-all disabled:opacity-40"
+                    >
+                      ➤
+                    </button>
                   </form>
                 </div>
               )}

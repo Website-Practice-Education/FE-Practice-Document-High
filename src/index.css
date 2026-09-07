@@ -168,6 +168,68 @@ input:focus, textarea:focus, select:focus {
 }
 
 /* ============================
+   AVATAR
+   ============================ */
+.avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-weight: 700;
+  flex-shrink: 0;
+  color: white;
+}
+
+/* ============================
+   CHAT BUBBLES
+   ============================ */
+.chat-bubble-mine {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
+  padding: 10px 16px;
+  border-radius: 18px 18px 4px 18px;
+  display: inline-block;
+  word-break: break-word;
+  max-width: 100%;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+}
+
+.chat-bubble-other {
+  background: #f1f5f9;
+  color: #1e293b;
+  padding: 10px 16px;
+  border-radius: 18px 18px 18px 4px;
+  display: inline-block;
+  word-break: break-word;
+  max-width: 100%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* ============================
+   CHAT CONTAINER
+   ============================ */
+.chat-container {
+  background: rgba(30, 41, 59, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 1rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+/* ============================
+   CHAT MESSAGES AREA
+   ============================ */
+.chat-messages {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.chat-messages .flex {
+  max-width: 100%;
+}
+
+/* ============================
    GLASS CARD - Fixed opacity
    ============================ */
 .glass-card {

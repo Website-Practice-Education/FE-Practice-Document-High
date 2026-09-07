@@ -155,7 +155,6 @@ export default function Login({ onLoginSuccess }: LoginProps) {
               <GoogleLogin
                 onSuccess={handleGoogleSuccess}
                 onError={handleGoogleError}
-                useOneTap
                 theme={isDark ? 'filled_black' : 'outline'}
                 size="large"
                 shape="rectangular"

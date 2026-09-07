@@ -249,10 +249,9 @@ export default function GlobalChat() {
             </div>
 
             {/* Chat container */}
-            <div className="flex-1 chat-container overflow-hidden">
+            <div className="chat-container flex flex-col flex-1 min-h-0">
                 <div
-                    className="flex-1 overflow-y-auto p-5 space-y-4"
-                    style={{ maxHeight: 'calc(100vh - 16rem)' }}
+                    className="chat-messages flex-1 overflow-y-auto p-5 space-y-4"
                 >
                     {messages.length === 0 ? (
                         <div className="text-center py-16 animate-scale-in">
@@ -267,20 +266,19 @@ export default function GlobalChat() {
                             return (
                                 <div
                                     key={msg.id}
-                                    className={`flex gap-3 animate-fade-in-up ${isMine ? 'flex-row-reverse' : ''}`}
-                                    style={{ animationDelay: `${Math.min(index * 30, 300)}ms`, animationFillMode: 'forwards', opacity: 0 }}
+                                    className={`flex gap-3 w-full animate-fade-in-up ${isMine ? 'flex-row-reverse' : ''}`}
                                 >
-                                    <div className={`avatar !w-9 !h-9 !text-xs flex-shrink-0 ${isMine ? '' : '!bg-gradient-to-br !from-slate-400 !to-slate-500'}`}>
+                                    <div className={`avatar w-9 h-9 text-xs flex-shrink-0 ${isMine ? 'bg-gradient-to-br from-indigo-500 to-purple-500' : 'bg-gradient-to-br from-slate-400 to-slate-500'}`}>
                                         {msg.userName?.charAt(0).toUpperCase() || '?'}
                                     </div>
-                                    <div className={`max-w-[70%] ${isMine ? 'text-right' : ''}`}>
+                                    <div className={`flex flex-col ${isMine ? 'items-end' : 'items-start'} max-w-[75%]`}>
                                         <div className={`flex items-center gap-2 mb-1 ${isMine ? 'flex-row-reverse' : ''}`}>
-                                            <span className="text-sm font-semibold text-slate-700">{msg.userName}</span>
+                                            <span className="text-sm font-semibold text-slate-200">{msg.userName}</span>
                                             <span className="text-xs text-slate-400">
                                                 {new Date(msg.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
                                             </span>
                                         </div>
-                                        <div className={`${isMine ? 'chat-bubble-mine' : 'chat-bubble-other'} ${isPending ? 'opacity-60' : ''}`}>
+                                        <div className={`w-full ${isMine ? 'chat-bubble-mine' : 'chat-bubble-other'} ${isPending ? 'opacity-60' : ''}`}>
                                             {msg.content}
                                         </div>
                                     </div>
@@ -302,7 +300,7 @@ export default function GlobalChat() {
                 </div>
 
                 {/* Message input */}
-                <form onSubmit={handleSendMessage} id="chat-form" className="border-t border-slate-100 p-4 bg-white/50">
+                <form onSubmit={handleSendMessage} id="chat-form" className="border-t border-white/10 p-4 bg-white/5">
                     <div className="flex gap-3">
                         <input
                             type="text"
@@ -318,13 +316,12 @@ export default function GlobalChat() {
                                 }
                             }}
                             placeholder="Nhập tin nhắn..."
-                            className="input-field flex-1 !rounded-full"
+                            className="flex-1 bg-white/10 border border-white/20 rounded-full px-5 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
                         />
                         <button
-                            type="button"
-                            onClick={() => handleSendMessage({ preventDefault: () => {} } as React.FormEvent)}
+                            type="submit"
                             disabled={!newMessage.trim() || connectionStatus !== 'connected'}
-                            className="btn-primary !rounded-full !px-6 disabled:opacity-40"
+                            className="px-6 py-3 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-semibold hover:scale-105 transition-all disabled:opacity-40 disabled:hover:scale-100"
                         >
                             Gửi
                         </button>
