@@ -428,9 +428,23 @@ export default function StudySpaceRoom() {
     }
   };
 
-  const handleDownloadFile = (file: SharedFile) => {
-    const url = fileService.getDownloadUrl(file.id);
-    window.open(url, '_blank');
+  const handleDownloadFile = async (file: SharedFile) => {
+    try {
+      const blob = await fileService.download(file.id);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = file.originalName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to download file:', error);
+      // Fallback: open in new tab
+      const url = fileService.getDownloadUrl(file.id);
+      window.open(url, '_blank');
+    }
   };
 
   const handlePreviewFile = (file: SharedFile) => {
@@ -442,8 +456,8 @@ export default function StudySpaceRoom() {
   };
 
   const getPreviewUrl = (file: SharedFile) => {
-    const token = localStorage.getItem('token');
-    return `${apiUrl}/room/files/${file.id}/download?access_token=${token}`;
+    const apiUrl = import.meta.env.VITE_API_URL || '';
+    return `${apiUrl}/room/files/${file.id}/download`;
   };
 
   // Theme handlers

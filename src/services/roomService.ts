@@ -189,8 +189,8 @@ export const fileService = {
   },
 
   getDownloadUrl: (fileId: number): string => {
-    const token = localStorage.getItem('token');
-    return `${import.meta.env.VITE_API_URL || ''}${BASE_URL}/files/${fileId}/download?access_token=${token}`;
+    const apiUrl = import.meta.env.VITE_API_URL || '';
+    return `${apiUrl}${BASE_URL}/files/${fileId}/download`;
   },
 };
 

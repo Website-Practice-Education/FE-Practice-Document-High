@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import type { CreateSpaceRequest, StudySpace, UpdateSpaceRequest, ChatMessage, Friend, FriendRequest } from '../services/studySpaceService';
 import { studySpaceService, chatService, friendService } from '../services/studySpaceService';
 import type { MusicTrack, SharedFile } from '../services/roomService';
-import { musicService, fileService, extractYouTubeId, getYouTubeThumbnail } from '../services/roomService';
+import { musicService, fileService, extractYouTubeId, getYouTubeThumbnail, roomSettingsService } from '../services/roomService';
 import { callService, type CallSession, type CallParticipant } from '../services/callService';
 import Loading from '../components/Loading';
 import TabBar from '../components/TabBar';
@@ -42,6 +42,7 @@ export default function StudyHub() {
   const [activeFeature, setActiveFeature] = useState<FeatureTabType>('chat');
   const [selectedRoom, setSelectedRoom] = useState<StudySpace | null>(null);
   const [showRoomDetail, setShowRoomDetail] = useState(false);
+  const [showAllMembers, setShowAllMembers] = useState(false);
   
   // ===== STATE: Rooms Data =====
   const [mySpaces, setMySpaces] = useState<StudySpace[]>([]);
@@ -93,6 +94,10 @@ export default function StudyHub() {
   // ===== STATE: Room Detail - Files =====
   const [uploadedFiles, setUploadedFiles] = useState<SharedFile[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [previewFile, setPreviewFile] = useState<SharedFile | null>(null);
+  
+  // ===== STATE: Background Upload =====
+  const bgImageInputRef = useRef<HTMLInputElement>(null);
   
   // ===== STATE: Room Detail - Notes =====
   const [notes, setNotes] = useState<{ id: number; content: string; createdAt: string }[]>([]);
@@ -208,14 +213,41 @@ export default function StudyHub() {
     setSelectedRoom(space);
     setShowRoomDetail(true);
     try {
-      const [messagesData, tracksData, filesData] = await Promise.all([
+      // Fetch full room details including members and inviteCode
+      const spaceDetail = await studySpaceService.getSpace(space.id);
+      
+      const [messagesData, tracksData, filesData, settingsData] = await Promise.all([
         chatService.getMessages(space.id),
         musicService.getTracks(space.id).catch(() => []),
         fileService.getFiles(space.id).catch(() => []),
+        roomSettingsService.get(space.id).catch(() => null),
       ]);
+      
+      // Update with full details
+      setSelectedRoom({
+        ...spaceDetail,
+        members: spaceDetail.members || [],
+      });
+      
       setMessages(messagesData);
       setUploadedTracks(tracksData);
       setUploadedFiles(filesData);
+      
+      // Load room settings (theme/background)
+      if (settingsData) {
+        if (settingsData.backgroundType === 'custom' && settingsData.backgroundImagePath) {
+          // Backend returns path like /uploads/backgrounds/... (no /api prefix)
+          const imagePath = settingsData.backgroundImagePath;
+          const fullUrl = imagePath.startsWith('http') 
+            ? imagePath 
+            : `${apiUrl.replace('/api', '')}${imagePath}`;
+          setCustomBgImage(fullUrl);
+          setCurrentTheme('custom');
+        } else if (settingsData.backgroundValue && THEMES[settingsData.backgroundValue as ThemeType]) {
+          setCurrentTheme(settingsData.backgroundValue as ThemeType);
+        }
+      }
+      
       // Connect to SignalR
       await connectToHub(space.id.toString());
     } catch (error) {
@@ -242,7 +274,37 @@ export default function StudyHub() {
     setShowRoomDetail(false);
     setSelectedRoom(null);
     setIsInCall(false);
+    setShowAllMembers(false);
     if (audioRef.current) audioRef.current.pause();
+  };
+  
+  const handleThemeSelect = async (themeKey: ThemeType) => {
+    setCurrentTheme(themeKey);
+    setShowThemePicker(false);
+    if (themeKey === 'custom') return;
+    try {
+      await roomSettingsService.updateBackground(selectedRoom!.id, 'theme', themeKey, undefined);
+    } catch (error) {
+      console.error('Failed to save theme:', error);
+    }
+  };
+  
+  const handleUploadBackground = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedRoom) return;
+
+    try {
+      const result = await roomSettingsService.uploadBackgroundImage(selectedRoom.id, file);
+      // Backend returns path like /uploads/backgrounds/... (no /api prefix)
+      const imagePath = result.backgroundImagePath || result.imageUrl;
+      const fullUrl = imagePath.startsWith('http') 
+        ? imagePath 
+        : `${apiUrl.replace('/api', '')}${imagePath}`;
+      setCustomBgImage(fullUrl);
+      setCurrentTheme('custom');
+    } catch (error) {
+      console.error('Failed to upload background:', error);
+    }
   };
   
   // ===== ROOM CRUD =====
@@ -562,6 +624,38 @@ export default function StudyHub() {
       console.error('Failed to delete file:', error);
     }
   };
+
+  const handleDownloadFile = async (file: SharedFile) => {
+    try {
+      const blob = await fileService.download(file.id);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = file.originalName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to download file:', error);
+      // Fallback: open in new tab
+      const url = fileService.getDownloadUrl(file.id);
+      window.open(url, '_blank');
+    }
+  };
+
+  const handlePreviewFile = (file: SharedFile) => {
+    setPreviewFile(file);
+  };
+
+  const closePreview = () => {
+    setPreviewFile(null);
+  };
+
+  const getPreviewUrl = (file: SharedFile) => {
+    const apiUrl = import.meta.env.VITE_API_URL || '';
+    return `${apiUrl}/room/files/${file.id}/download`;
+  };
   
   // ===== NOTES =====
   const handleAddNote = () => {
@@ -600,15 +694,17 @@ export default function StudyHub() {
         setCallParticipants(activeCall.participants || []);
         setIsInCall(true);
         
-        // Get local stream
+        // Get local stream - always request both video and audio
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: isVideoOn,
+          video: true,
           audio: true,
         });
         localStreamRef.current = stream;
         if (localVideoRef.current) {
           localVideoRef.current.srcObject = stream;
         }
+        // Set initial state based on call type
+        setIsVideoOn(true);
       } else {
         // Start new call
         const newSession = await callService.startCall(selectedRoom.id, isVideoOn ? 'video' : 'audio');
@@ -616,15 +712,17 @@ export default function StudyHub() {
         setCallParticipants(newSession.participants || []);
         setIsInCall(true);
         
-        // Get local stream
+        // Get local stream - always request both video and audio
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: isVideoOn,
+          video: true,
           audio: true,
         });
         localStreamRef.current = stream;
         if (localVideoRef.current) {
           localVideoRef.current.srcObject = stream;
         }
+        // Set initial state
+        setIsVideoOn(true);
       }
     } catch (error) {
       console.error('Failed to start call:', error);
@@ -693,11 +791,14 @@ export default function StudyHub() {
     if (!currentCallSession) return;
     try {
       const newVideoOffState = await callService.toggleVideo(currentCallSession.id);
-      setIsVideoOn(!newVideoOffState);
-      // Toggle local video
+      const shouldBeOn = !newVideoOffState; // isVideoOn = !isVideoOff
+      
+      setIsVideoOn(shouldBeOn);
+      
+      // Toggle local video track
       if (localStreamRef.current) {
         localStreamRef.current.getVideoTracks().forEach(track => {
-          track.enabled = !newVideoOffState;
+          track.enabled = shouldBeOn;
         });
       }
     } catch (error) {
@@ -807,12 +908,12 @@ export default function StudyHub() {
     const theme = currentTheme !== 'custom' ? THEMES[currentTheme] : null;
     
     return (
-      <div className="min-h-screen animate-fade-in-up relative overflow-hidden" style={{ background: customBgImage ? `url(${customBgImage}) center/cover no-repeat` : theme ? `linear-gradient(135deg, var(--tw-gradient-stops))` : '#0f172a' }}>
+      <div className="min-h-screen animate-fade-in-up relative overflow-hidden" style={{ background: customBgImage ? `url(${customBgImage}) center/cover no-repeat` : theme ? undefined : '#0f172a' }}>
         <audio ref={audioRef} onEnded={() => setIsPlaying(false)} />
         
         {/* Dynamic Background */}
         {!customBgImage && theme && (
-          <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900">
+          <div className={`absolute inset-0 bg-gradient-to-br ${theme.bg}`}>
             <div className="absolute inset-0 overflow-hidden">
               {[...Array(20)].map((_, i) => (
                 <div key={i} className="absolute w-2 h-2 rounded-full bg-white/20 animate-float" style={{ left: `${Math.random() * 100}%`, top: `${Math.random() * 100}%`, animationDelay: `${Math.random() * 5}s`, animationDuration: `${3 + Math.random() * 4}s` }} />
@@ -964,7 +1065,13 @@ export default function StudyHub() {
                             <button 
                               onClick={() => {
                                 console.log('[Music] Play button clicked for track:', track);
-                                playTrack(track);
+                                // If clicking on current track, toggle play/pause
+                                if (currentTrack?.id === track.id) {
+                                  togglePlay();
+                                } else {
+                                  // Different track - play it
+                                  playTrack(track);
+                                }
                               }} 
                               className="w-10 h-10 rounded-full bg-gradient-to-r from-pink-500 to-purple-500 text-white flex items-center justify-center hover:scale-110 transition-all flex-shrink-0 shadow-lg"
                               title={track.sourceType === 'youtube' ? 'Phát YouTube' : 'Phát nhạc'}
@@ -1084,6 +1191,10 @@ export default function StudyHub() {
                               <p className="text-white font-medium truncate">{file.originalName}</p>
                               <p className="text-white/50 text-sm">{formatFileSize(file.fileSize)} • {file.uploaderName}</p>
                             </div>
+                            {(file.fileType === 'image' || file.fileType === 'video' || file.fileType === 'audio' || file.fileType === 'pdf') && (
+                              <button onClick={() => handlePreviewFile(file)} className="w-8 h-8 rounded-full bg-purple-500/20 text-purple-400 flex items-center justify-center hover:bg-purple-500/30" title="Xem truoc">👁</button>
+                            )}
+                            <button onClick={() => handleDownloadFile(file)} className="w-8 h-8 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center hover:bg-blue-500/30" title="Tai ve">⬇</button>
                             <button onClick={() => handleDeleteFile(file.id)} className="w-8 h-8 rounded-full bg-red-500/20 text-red-400 flex items-center justify-center hover:bg-red-500/30">✕</button>
                           </div>
                         ))}
@@ -1241,14 +1352,21 @@ export default function StudyHub() {
                   Thanh vien ({selectedRoom.memberCount})
                 </h3>
                 <div className="space-y-2">
-                  {selectedRoom.members?.slice(0, 5).map((member) => (
+                  {(selectedRoom.members || []).slice(0, showAllMembers ? undefined : 5).map((member) => (
                     <div key={member.id} className="flex items-center gap-2 p-2 rounded-lg bg-white/5">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-sm">{member.name?.charAt(0)}</div>
-                      <span className="text-white text-sm">{member.name}</span>
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-sm">{member.name?.charAt(0) || '?'}</div>
+                      <span className="text-white text-sm">{member.name || 'Unknown'}</span>
                       <span className="ml-auto text-xs text-white/40">{member.role}</span>
                     </div>
                   ))}
-                  {selectedRoom.memberCount > 5 && <p className="text-white/40 text-sm text-center">+{selectedRoom.memberCount - 5} more</p>}
+                  {selectedRoom.memberCount > 5 && (
+                    <button
+                      onClick={() => setShowAllMembers(!showAllMembers)}
+                      className="w-full py-2 text-center text-sm text-indigo-400 hover:text-indigo-300 transition-colors"
+                    >
+                      {showAllMembers ? '▲ An bot' : `▼ Xem them (${selectedRoom.memberCount - 5} nua)`}
+                    </button>
+                  )}
                 </div>
               </div>
               
@@ -1268,13 +1386,31 @@ export default function StudyHub() {
         {showThemePicker && (
           <div className="fixed top-20 right-4 z-50 glass-card rounded-2xl p-4 shadow-2xl animate-fade-in-up w-64">
             <h3 className="text-white font-bold mb-3 text-sm">Chon nen</h3>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-2 mb-4">
               {(Object.keys(THEMES) as ThemeType[]).map((themeKey) => (
-                <button key={themeKey} onClick={() => { setCurrentTheme(themeKey); setShowThemePicker(false); }} className={`p-2 rounded-xl ${currentTheme === themeKey ? 'ring-2 ring-white' : ''}`}>
+                <button key={themeKey} onClick={() => handleThemeSelect(themeKey)} className={`p-2 rounded-xl ${currentTheme === themeKey ? 'ring-2 ring-white' : ''}`}>
                   <div className={`w-full h-8 rounded-lg bg-gradient-to-br ${THEMES[themeKey].bg} mb-1`} />
                   <span className="text-xs text-white/80">{THEMES[themeKey].name}</span>
                 </button>
               ))}
+            </div>
+            {/* Upload custom background */}
+            <div className="border-t border-white/10 pt-3">
+              <p className="text-white/60 text-xs mb-2">Hoac tai len anh nen cua ban</p>
+              <div
+                onClick={() => bgImageInputRef.current?.click()}
+                className="p-4 rounded-xl border-2 border-dashed border-white/20 hover:border-white/40 cursor-pointer transition-all text-center"
+              >
+                <input
+                  ref={bgImageInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleUploadBackground}
+                  className="hidden"
+                />
+                <div className="text-2xl mb-1">📷</div>
+                <p className="text-white/60 text-xs">Upload anh nen tu may</p>
+              </div>
             </div>
           </div>
         )}
@@ -1286,6 +1422,16 @@ export default function StudyHub() {
             onAddFromLink={handleAddMusicFromLink}
             onAddFromYouTube={handleAddMusicFromYouTube}
             onUpload={handleUploadMusic}
+          />
+        )}
+
+        {/* File Preview Modal */}
+        {previewFile && (
+          <FilePreviewModal
+            file={previewFile}
+            previewUrl={getPreviewUrl(previewFile)}
+            onClose={closePreview}
+            onDownload={() => handleDownloadFile(previewFile)}
           />
         )}
 
@@ -1821,6 +1967,129 @@ function AddMusicModal({
             className="px-6 py-2 rounded-full bg-pink-500 text-white font-semibold hover:bg-pink-600 disabled:opacity-40"
           >
             {addTab === 'youtube' ? '📺 Thêm YouTube' : addTab === 'upload' ? '📤 Upload' : '🎵 Thêm nhạc'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ====== FILE PREVIEW MODAL ======
+function FilePreviewModal({ file, previewUrl, onClose, onDownload }: {
+  file: SharedFile;
+  previewUrl: string;
+  onClose: () => void;
+  onDownload: () => void;
+}) {
+  const [loading, setLoading] = useState(true);
+  
+  const formatFileSize = (bytes: number) => {
+    if (bytes > 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  };
+  
+  const renderPreview = () => {
+    switch (file.fileType) {
+      case 'image':
+        return (
+          <img
+            src={previewUrl}
+            alt={file.originalName}
+            className="max-w-full max-h-[60vh] object-contain rounded-lg"
+            onLoad={() => setLoading(false)}
+            onError={() => setLoading(false)}
+          />
+        );
+      case 'video':
+        return (
+          <video
+            src={previewUrl}
+            controls
+            className="max-w-full max-h-[60vh] rounded-lg"
+            onCanPlay={() => setLoading(false)}
+            onError={() => setLoading(false)}
+          >
+            Your browser does not support the video tag.
+          </video>
+        );
+      case 'audio':
+        return (
+          <div className="w-full max-w-md">
+            <audio
+              src={previewUrl}
+              controls
+              className="w-full"
+              onCanPlay={() => setLoading(false)}
+              onError={() => setLoading(false)}
+            >
+              Your browser does not support the audio element.
+            </audio>
+          </div>
+        );
+      case 'pdf':
+        return (
+          <iframe
+            src={previewUrl}
+            className="w-full h-[60vh] rounded-lg border-0"
+            title={file.originalName}
+            onLoad={() => setLoading(false)}
+            onError={() => setLoading(false)}
+          />
+        );
+      default:
+        return (
+          <div className="text-center py-12">
+            <div className="text-5xl mb-4">📄</div>
+            <p className="text-white/60">Không thể xem trước loại file này</p>
+            <p className="text-white/40 text-sm mt-2">{file.originalName}</p>
+          </div>
+        );
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div 
+        className="glass-card rounded-2xl p-6 w-full max-w-4xl max-h-[90vh] overflow-hidden animate-scale-in flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex-1 min-w-0">
+            <h2 className="text-xl font-bold text-white truncate">{file.originalName}</h2>
+            <p className="text-white/50 text-sm">{formatFileSize(file.fileSize)} • {file.uploaderName}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-10 h-10 rounded-full bg-white/10 text-white/80 hover:bg-white/20 flex items-center justify-center transition-all ml-4"
+          >
+            ✕
+          </button>
+        </div>
+        
+        {/* Preview Content */}
+        <div className="flex-1 overflow-auto flex items-center justify-center bg-black/20 rounded-xl p-4 mb-4">
+          {loading && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="animate-spin w-8 h-8 border-2 border-white border-t-transparent rounded-full" />
+            </div>
+          )}
+          {renderPreview()}
+        </div>
+        
+        {/* Actions */}
+        <div className="flex justify-end gap-3">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded-full bg-white/10 text-white/80 hover:bg-white/20 transition-all"
+          >
+            Đóng
+          </button>
+          <button
+            onClick={onDownload}
+            className="px-6 py-2 rounded-full bg-blue-500 text-white font-semibold hover:bg-blue-600 transition-all flex items-center gap-2"
+          >
+            <span>⬇</span> Tải về
           </button>
         </div>
       </div>
