@@ -10,43 +10,70 @@ export default function GoogleCallback() {
 
   useEffect(() => {
     const handleCallback = async () => {
-      // Google OAuth2 với id_token trả về qua URL fragment (#)
-      // Hoặc có thể qua query parameter tùy cấu hình
-      const hash = window.location.hash;
-      const params = new URLSearchParams(hash.startsWith('#') ? hash.substring(1) : '');
-      const credential = searchParams.get('credential') || params.get('id_token') || params.get('access_token');
+      console.log('[GoogleCallback] Processing callback...');
+      console.log('[GoogleCallback] Search params:', Object.fromEntries(searchParams));
+      console.log('[GoogleCallback] Hash:', window.location.hash);
+      console.log('[GoogleCallback] Origin:', window.location.origin);
+
+      // Google OAuth2 có thể trả về qua:
+      // 1. Query parameter: ?credential=xxx hoặc ?id_token=xxx
+      // 2. URL fragment: #id_token=xxx hoặc #access_token=xxx
+      
+      // Ưu tiên lấy từ query parameter trước
+      let credential = searchParams.get('credential') || 
+                       searchParams.get('id_token') || 
+                       searchParams.get('access_token');
+      
+      // Nếu không có, thử lấy từ hash (URL fragment)
+      if (!credential) {
+        const hash = window.location.hash;
+        if (hash && hash.length > 1) {
+          const hashParams = new URLSearchParams(hash.substring(1));
+          credential = hashParams.get('id_token') || 
+                       hashParams.get('access_token') ||
+                       hashParams.get('credential');
+        }
+      }
+      
       const error = searchParams.get('error');
 
       if (error) {
-        console.error('Google OAuth Error:', error);
+        console.error('[GoogleCallback] OAuth Error:', error);
         toast.error('Đăng nhập Google thất bại: ' + error);
         navigate('/login');
         return;
       }
 
       if (!credential) {
-        console.error('No credential found in URL');
-        console.log('Search params:', Object.fromEntries(searchParams));
-        console.log('Hash:', hash);
+        console.error('[GoogleCallback] No credential found');
+        console.log('[GoogleCallback] Current URL:', window.location.href);
         toast.error('Không nhận được thông tin từ Google. Vui lòng thử lại.');
         navigate('/login');
         return;
       }
+
+      console.log('[GoogleCallback] Credential found, logging in...');
 
       try {
         setStatus('loading');
         await AuthService.googleLogin(credential);
         toast.success('Đăng nhập Google thành công!');
         setStatus('success');
-        // Clear hash từ URL
+        
+        // Clear hash và query params từ URL
         window.history.replaceState(null, '', window.location.pathname);
-        navigate('/dashboard');
+        
+        setTimeout(() => {
+          navigate('/dashboard');
+        }, 1000);
       } catch (err: any) {
-        console.error('Login error:', err);
-        const message = err.response?.data?.message || 'Đăng nhập Google thất bại. Vui lòng thử lại.';
+        console.error('[GoogleCallback] Login error:', err);
+        const message = err.response?.data?.message || err.message || 'Đăng nhập Google thất bại. Vui lòng thử lại.';
         toast.error(message);
         setStatus('error');
-        navigate('/login');
+        setTimeout(() => {
+          navigate('/login');
+        }, 2000);
       }
     };
 
