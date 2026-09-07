@@ -158,7 +158,7 @@ export default function Forum() {
         setTotalCount(prev => prev - 1);
         toast.success('Xóa bài viết thành công');
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error('Không thể xóa bài viết');
     } finally {
       setDeleteModal({ isOpen: false, type: null, id: null });
@@ -180,7 +180,7 @@ export default function Forum() {
           return p;
         }));
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error('Không thể thích bài viết');
     }
   };
@@ -232,7 +232,7 @@ export default function Forum() {
         setCommentInputs(prev => ({ ...prev, [postId]: '' }));
         toast.success('Bình luận thành công!');
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error('Không thể bình luận');
     } finally {
       setPostingComment(null);

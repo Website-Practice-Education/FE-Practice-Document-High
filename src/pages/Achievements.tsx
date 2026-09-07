@@ -1,31 +1,49 @@
 import { useState, useEffect } from 'react';
 import achievementService, { Achievement } from '../services/achievementService';
 import XPBar from '../components/XPBar';
+import AchievementCard from '../components/AchievementCard';
 
 export default function Achievements() {
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [userAchievements, setUserAchievements] = useState<number[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [_loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'unlocked' | 'locked'>('all');
-  const [totalXP, setTotalXP] = useState(1250); // Mock XP
 
-  useEffect(() => {
-    loadAchievements();
-  }, []);
+  // Get user data from localStorage (set by backend after login)
+  const getUserData = () => {
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      return {
+        totalXP: user.xp || user.totalXP || 0,
+        unlockedAchievements: user.achievements || user.unlockedAchievements || [],
+      };
+    }
+    // Fallback: no mock data, show 0
+    return { totalXP: 0, unlockedAchievements: [] };
+  };
+
+  const userData = getUserData();
+  const [totalXP] = useState(userData.totalXP);
 
   const loadAchievements = async () => {
     setLoading(true);
     try {
       const allAchievements = await achievementService.getAllAchievements();
       setAchievements(allAchievements);
-      // Mock user achievements - in real app this would come from API
-      setUserAchievements([1, 2, 3, 4, 7]); // Achievement IDs that user has unlocked
+      // Get unlocked achievement IDs from user data
+      setUserAchievements(userData.unlockedAchievements);
     } catch (error) {
       console.error('Failed to load achievements:', error);
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadAchievements();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const filteredAchievements = achievements.filter((a) => {
     const isUnlocked = userAchievements.includes(a.id);

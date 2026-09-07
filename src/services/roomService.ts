@@ -21,14 +21,46 @@ export interface MusicTrack {
   spaceId: number;
   title: string;
   artist?: string;
-  sourceType: 'upload' | 'link';
+  sourceType: 'upload' | 'link' | 'youtube';
   filePath?: string;
   externalUrl?: string;
   durationSeconds: number;
   uploadedBy: number;
   uploaderName?: string;
   createdAt: string;
+  thumbnailUrl?: string;
 }
+
+// YouTube URL patterns
+const YOUTUBE_PATTERNS = [
+  /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
+  /youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/,
+];
+
+// Extract YouTube video ID
+export const extractYouTubeId = (url: string): string | null => {
+  for (const pattern of YOUTUBE_PATTERNS) {
+    const match = url.match(pattern);
+    if (match) return match[1];
+  }
+  return null;
+};
+
+// YouTube thumbnail URL helper
+export const getYouTubeThumbnail = (videoId: string, quality: 'default' | 'medium' | 'high' | 'max' = 'medium'): string => {
+  const qualityMap = {
+    default: 'default',
+    medium: 'mqdefault',
+    high: 'hqdefault',
+    max: 'maxresdefault',
+  };
+  return `https://img.youtube.com/vi/${videoId}/${qualityMap[quality]}.jpg`;
+};
+
+// YouTube embed URL helper
+export const getYouTubeEmbedUrl = (videoId: string): string => {
+  return `https://www.youtube.com/embed/${videoId}?autoplay=0&controls=1&rel=0`;
+};
 
 export interface SharedFile {
   id: number;
@@ -66,6 +98,31 @@ export const musicService = {
     return response.data?.data || response.data;
   },
 
+  /**
+   * Add track from YouTube URL - auto extracts metadata
+   */
+  addFromYouTube: async (spaceId: number, youtubeUrl: string): Promise<MusicTrack> => {
+    const videoId = extractYouTubeId(youtubeUrl);
+    if (!videoId) {
+      throw new Error('Invalid YouTube URL');
+    }
+
+    // Send to backend (backend will handle YouTube URL storage)
+    const response = await api.post(`${BASE_URL}/${spaceId}/music/youtube`, {
+      url: youtubeUrl,
+      videoId: videoId,
+    });
+    return response.data?.data || response.data;
+  },
+
+  /**
+   * Update track info (title, artist)
+   */
+  updateTrack: async (trackId: number, data: { title?: string; artist?: string }): Promise<MusicTrack> => {
+    const response = await api.put(`${BASE_URL}/music/${trackId}`, data);
+    return response.data?.data || response.data;
+  },
+
   upload: async (spaceId: number, file: File, title: string, artist?: string, duration: number = 0): Promise<MusicTrack> => {
     const formData = new FormData();
     formData.append('file', file);
@@ -81,6 +138,23 @@ export const musicService = {
 
   delete: async (trackId: number): Promise<void> => {
     await api.delete(`${BASE_URL}/music/${trackId}`);
+  },
+
+  /**
+   * Get streaming URL for a track
+   */
+  getStreamUrl: (track: MusicTrack): string => {
+    if (track.sourceType === 'youtube' && track.externalUrl) {
+      const videoId = extractYouTubeId(track.externalUrl);
+      if (videoId) {
+        return getYouTubeEmbedUrl(videoId);
+      }
+    }
+    if (track.filePath) {
+      const token = localStorage.getItem('token');
+      return `${import.meta.env.VITE_API_URL || ''}${track.filePath}?access_token=${token}`;
+    }
+    return track.externalUrl || '';
   },
 };
 

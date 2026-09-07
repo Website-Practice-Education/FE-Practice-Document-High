@@ -4,8 +4,11 @@ export interface Achievement {
   code: string;
   name: string;
   description: string;
+  icon?: string;
   iconUrl?: string;
   xpReward: number;
+  rarity?: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
+  criteria?: string;
   conditionType?: string;
   conditionValue?: number;
   isActive: boolean;
@@ -65,7 +68,7 @@ class AchievementService {
     }
   }
 
-  async getUserAchievements(userId: number): Promise<UserAchievement[]> {
+  async getUserAchievements(_userId: number): Promise<UserAchievement[]> {
     try {
       const response = await fetch(`${this.API_URL}/achievement/my`, {
         headers: this.getAuthHeaders(),

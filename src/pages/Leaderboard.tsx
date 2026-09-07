@@ -6,14 +6,10 @@ import { AuthService } from '../services/authService';
 export default function Leaderboard() {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [filter, setFilter] = useState<LeaderboardFilter>({ type: 'all' });
-  const [loading, setLoading] = useState(true);
-  const [currentUserRank, setCurrentUserRank] = useState<number>(0);
+  const [_loading, setLoading] = useState(true);
+  const [_currentUserRank, setCurrentUserRank] = useState<number>(0);
 
   const currentUser = AuthService.getCurrentUser();
-
-  useEffect(() => {
-    loadLeaderboard();
-  }, [filter]);
 
   const loadLeaderboard = async () => {
     setLoading(true);
@@ -30,6 +26,11 @@ export default function Leaderboard() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadLeaderboard();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter]);
 
   return (
     <div>

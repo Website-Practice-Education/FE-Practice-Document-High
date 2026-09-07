@@ -1,11 +1,16 @@
 // Progress Service - Daily progress tracking
+// Updated to use real API data instead of mock data
+
 export interface DailyProgress {
-  id: number;
-  userId: number;
-  progressDate: string;
+  id?: number;
+  userId?: number;
+  date?: string;
+  progressDate?: string;
   questionsAnswered: number;
   questionsCorrect: number;
+  correctAnswers?: number;
   studyMinutes: number;
+  timeSpentMinutes?: number;
   examsCompleted: number;
   xpEarned: number;
 }
@@ -20,10 +25,20 @@ export interface WeeklyStats {
   averageScore: number;
   bestDay: string;
   streak: number;
+  dailyXP: number[];
+  dailyProgress?: Array<{
+    date: string;
+    questionsAnswered: number;
+    correctAnswers: number;
+    timeSpentMinutes: number;
+    xpEarned?: number;
+  }>;
 }
 
 export interface MonthlyStats {
-  month: string;
+  year: number;
+  month: number;
+  monthName: string;
   totalQuestions: number;
   correctQuestions: number;
   totalMinutes: number;
@@ -42,8 +57,42 @@ export interface TopicProgress {
   lastPracticed: string;
 }
 
+// Dashboard response from API
+export interface DashboardResponse {
+  totalQuestionsAnswered: number;
+  totalCorrectAnswers: number;
+  accuracyRate: number;
+  totalExamsTaken: number;
+  averageScore: number;
+  currentStreak: number;
+  longestStreak: number;
+  totalStudyTimeMinutes: number;
+  lessonsCompleted: number;
+  topicsCompleted: number;
+  weeklyProgress: Array<{
+    date: string;
+    questionsAnswered: number;
+    correctAnswers: number;
+    timeSpentMinutes: number;
+  }>;
+}
+
+export interface StreakData {
+  currentStreak: number;
+  longestStreak: number;
+  lastActivityDate?: string;
+}
+
+// API Response wrapper
+interface ApiResponse<T> {
+  success: boolean;
+  message: string;
+  data: T | null;
+  errors: string[];
+}
+
 class ProgressService {
-  private readonly API_URL = 'http://localhost:5058/api';
+  private readonly API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5058/api';
 
   private getAuthHeaders(): HeadersInit {
     const token = localStorage.getItem('token');
@@ -53,161 +102,225 @@ class ProgressService {
     };
   }
 
-  async getDailyProgress(userId: number, date?: string): Promise<DailyProgress | null> {
+  private async handleResponse<T>(response: Response): Promise<T | null> {
+    if (!response.ok) {
+      console.error(`API Error: ${response.status} ${response.statusText}`);
+      return null;
+    }
     try {
-      const targetDate = date || new Date().toISOString().split('T')[0];
-      const response = await fetch(`${this.API_URL}/progress/today`, {
-        headers: this.getAuthHeaders(),
-      });
-      if (!response.ok) throw new Error('Failed to fetch daily progress');
-      const result = await response.json();
-      return result.data || this.getMockDailyProgress();
-    } catch (error) {
-      console.error('Error fetching daily progress:', error);
-      return this.getMockDailyProgress();
+      return await response.json();
+    } catch {
+      return null;
     }
   }
 
-  async getWeeklyStats(userId: number): Promise<WeeklyStats> {
+  // Get dashboard data (main endpoint that returns comprehensive progress data)
+  async getDashboard(): Promise<DashboardResponse | null> {
+    try {
+      const response = await fetch(`${this.API_URL}/progress/dashboard`, {
+        headers: this.getAuthHeaders(),
+      });
+      const result: ApiResponse<DashboardResponse> = await this.handleResponse(response);
+      return result?.data || null;
+    } catch (error) {
+      console.error('Error fetching dashboard:', error);
+      return null;
+    }
+  }
+
+  // Get today's progress
+  async getTodayProgress(): Promise<DailyProgress | null> {
+    try {
+      const response = await fetch(`${this.API_URL}/progress/today`, {
+        headers: this.getAuthHeaders(),
+      });
+      const result: ApiResponse<any> = await this.handleResponse(response);
+      
+      if (result?.data) {
+        return {
+          id: result.data.id,
+          userId: result.data.userId,
+          progressDate: result.data.progressDate || result.data.date,
+          questionsAnswered: result.data.questionsAnswered,
+          questionsCorrect: result.data.questionsCorrect || result.data.correctAnswers,
+          correctAnswers: result.data.correctAnswers || result.data.questionsCorrect,
+          studyMinutes: result.data.studyMinutes || result.data.timeSpentMinutes || 0,
+          timeSpentMinutes: result.data.timeSpentMinutes || result.data.studyMinutes || 0,
+          examsCompleted: result.data.examsCompleted,
+          xpEarned: result.data.xpEarned,
+        };
+      }
+      return null;
+    } catch (error) {
+      console.error('Error fetching today progress:', error);
+      return null;
+    }
+  }
+
+  // Get weekly progress
+  async getWeeklyProgress(): Promise<WeeklyStats | null> {
     try {
       const response = await fetch(`${this.API_URL}/progress/weekly`, {
         headers: this.getAuthHeaders(),
       });
-      if (!response.ok) throw new Error('Failed to fetch weekly stats');
-      const result = await response.json();
-      return result.data || this.getMockWeeklyStats();
+      const result: ApiResponse<any> = await this.handleResponse(response);
+      
+      if (result?.data) {
+        return {
+          weekStart: result.data.weekStart,
+          totalQuestions: result.data.totalQuestions,
+          correctQuestions: result.data.correctQuestions,
+          totalMinutes: result.data.totalMinutes,
+          totalExams: result.data.totalExams,
+          totalXP: result.data.totalXP,
+          averageScore: result.data.averageScore,
+          bestDay: result.data.bestDay,
+          streak: result.data.streak,
+          dailyXP: result.data.dailyXP || [],
+          dailyProgress: result.data.dailyProgress,
+        };
+      }
+      return null;
     } catch (error) {
-      console.error('Error fetching weekly stats:', error);
-      return this.getMockWeeklyStats();
+      console.error('Error fetching weekly progress:', error);
+      return null;
     }
   }
 
-  async getMonthlyStats(userId: number): Promise<MonthlyStats> {
+  // Get daily progress (alias for getTodayProgress)
+  async getDailyProgress(_date?: string): Promise<DailyProgress | null> {
+    return this.getTodayProgress();
+  }
+
+  // Get monthly stats
+  async getMonthlyStats(): Promise<MonthlyStats | null> {
     try {
-      const response = await fetch(`${this.API_URL}/users/${userId}/progress/monthly`);
-      if (!response.ok) throw new Error('Failed to fetch monthly stats');
-      return await response.json();
+      const response = await fetch(`${this.API_URL}/progress/monthly`, {
+        headers: this.getAuthHeaders(),
+      });
+      const result: ApiResponse<any> = await this.handleResponse(response);
+      
+      if (result?.data) {
+        return {
+          year: result.data.year,
+          month: result.data.month,
+          monthName: result.data.monthName,
+          totalQuestions: result.data.totalQuestions,
+          correctQuestions: result.data.correctQuestions,
+          totalMinutes: result.data.totalMinutes,
+          totalExams: result.data.totalExams,
+          totalXP: result.data.totalXP,
+          daysActive: result.data.daysActive,
+          averageDailyXP: result.data.averageDailyXP,
+        };
+      }
+      return null;
     } catch (error) {
       console.error('Error fetching monthly stats:', error);
-      return this.getMockMonthlyStats();
+      return null;
     }
   }
 
-  async getTopicProgress(userId: number): Promise<TopicProgress[]> {
+  // Get topic progress
+  async getTopicProgress(): Promise<TopicProgress[]> {
     try {
-      const response = await fetch(`${this.API_URL}/users/${userId}/progress/topics`);
-      if (!response.ok) throw new Error('Failed to fetch topic progress');
-      return await response.json();
+      const response = await fetch(`${this.API_URL}/progress/topics`, {
+        headers: this.getAuthHeaders(),
+      });
+      const result: ApiResponse<any[]> = await this.handleResponse(response);
+      
+      if (result?.data && Array.isArray(result.data)) {
+        return result.data.map(t => ({
+          topicId: t.topicId,
+          topicName: t.topicName,
+          totalQuestions: t.totalQuestions,
+          correctCount: t.correctCount,
+          accuracy: t.accuracy,
+          lastPracticed: t.lastPracticed || '',
+        }));
+      }
+      return [];
     } catch (error) {
       console.error('Error fetching topic progress:', error);
-      return this.getMockTopicProgress();
+      return [];
     }
   }
 
-  async updateDailyProgress(userId: number, data: Partial<DailyProgress>): Promise<DailyProgress> {
+  // Update daily progress (force refresh)
+  async updateDailyProgress(): Promise<DailyProgress | null> {
     try {
-      const response = await fetch(`${this.API_URL}/users/${userId}/progress/daily`, {
+      const response = await fetch(`${this.API_URL}/progress/update`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        headers: this.getAuthHeaders(),
       });
-      if (!response.ok) throw new Error('Failed to update progress');
-      return await response.json();
+      const result: ApiResponse<any> = await this.handleResponse(response);
+      
+      if (result?.data) {
+        return {
+          questionsAnswered: result.data.questionsAnswered,
+          questionsCorrect: result.data.correctAnswers,
+          correctAnswers: result.data.correctAnswers,
+          studyMinutes: result.data.timeSpentMinutes || 0,
+          timeSpentMinutes: result.data.timeSpentMinutes || 0,
+          examsCompleted: 0,
+          xpEarned: result.data.xpEarned,
+        };
+      }
+      return null;
     } catch (error) {
       console.error('Error updating progress:', error);
-      throw error;
+      return null;
     }
   }
 
-  async getStreak(userId: number): Promise<{ currentStreak: number; longestStreak: number }> {
+  // Get streak data
+  async getStreak(): Promise<StreakData> {
     try {
-      const response = await fetch(`${this.API_URL}/users/${userId}/progress/streak`);
-      if (!response.ok) throw new Error('Failed to fetch streak');
-      return await response.json();
+      const response = await fetch(`${this.API_URL}/progress/streak`, {
+        headers: this.getAuthHeaders(),
+      });
+      const result: ApiResponse<StreakData> = await this.handleResponse(response);
+      return result?.data || { currentStreak: 0, longestStreak: 0 };
     } catch (error) {
       console.error('Error fetching streak:', error);
-      return { currentStreak: 5, longestStreak: 15 };
+      return { currentStreak: 0, longestStreak: 0 };
     }
   }
 
-  // Mock data generators
-  private getMockDailyProgress(): DailyProgress {
-    return {
-      id: 1,
-      userId: 1,
-      progressDate: new Date().toISOString().split('T')[0],
-      questionsAnswered: Math.floor(Math.random() * 50) + 10,
-      questionsCorrect: Math.floor(Math.random() * 30) + 5,
-      studyMinutes: Math.floor(Math.random() * 120) + 30,
-      examsCompleted: Math.floor(Math.random() * 3),
-      xpEarned: Math.floor(Math.random() * 200) + 50,
-    };
-  }
-
-  private getMockWeeklyStats(): WeeklyStats {
-    return {
-      weekStart: this.getWeekStart(),
-      totalQuestions: Math.floor(Math.random() * 300) + 100,
-      correctQuestions: Math.floor(Math.random() * 200) + 80,
-      totalMinutes: Math.floor(Math.random() * 600) + 200,
-      totalExams: Math.floor(Math.random() * 10) + 3,
-      totalXP: Math.floor(Math.random() * 1000) + 300,
-      averageScore: Math.floor(Math.random() * 30) + 60,
-      bestDay: this.getWeekDays()[Math.floor(Math.random() * 5)],
-      streak: Math.floor(Math.random() * 15) + 3,
-    };
-  }
-
-  private getMockMonthlyStats(): MonthlyStats {
-    return {
-      month: new Date().toLocaleString('default', { month: 'long', year: 'numeric' }),
-      totalQuestions: Math.floor(Math.random() * 1500) + 500,
-      correctQuestions: Math.floor(Math.random() * 1000) + 400,
-      totalMinutes: Math.floor(Math.random() * 3000) + 1000,
-      totalExams: Math.floor(Math.random() * 30) + 10,
-      totalXP: Math.floor(Math.random() * 5000) + 1500,
-      daysActive: Math.floor(Math.random() * 25) + 5,
-      averageDailyXP: Math.floor(Math.random() * 200) + 50,
-    };
-  }
-
-  private getMockTopicProgress(): TopicProgress[] {
-    const topics = [
-      'Toan Hoc', 'Vat Ly', 'Hoa Hoc', 'Sinh Hoc', 'Ngu Van',
-      'Lich Su', 'Dia Ly', 'Anh Van', 'Tin Hoc', 'The Duc'
-    ];
-
-    return topics.map((name, index) => ({
-      topicId: index + 1,
-      topicName: name,
-      totalQuestions: Math.floor(Math.random() * 100) + 20,
-      correctCount: Math.floor(Math.random() * 70) + 10,
-      accuracy: Math.floor(Math.random() * 40) + 60,
-      lastPracticed: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(),
-    }));
-  }
-
-  private getWeekStart(): string {
-    const now = new Date();
-    const dayOfWeek = now.getDay();
-    const diff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
-    return new Date(now.setDate(diff)).toISOString().split('T')[0];
-  }
-
-  private getWeekDays(): string[] {
-    const days = [];
-    const now = new Date();
-    for (let i = 0; i < 5; i++) {
-      const day = new Date(now);
-      day.setDate(now.getDate() - now.getDay() + i + 1);
-      days.push(day.toLocaleDateString('vi-VN', { weekday: 'short' }));
+  // Update lesson progress
+  async updateLessonProgress(lessonId: number, status: string): Promise<boolean> {
+    try {
+      const response = await fetch(`${this.API_URL}/progress/lesson/${lessonId}`, {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify({ status }),
+      });
+      return response.ok;
+    } catch (error) {
+      console.error('Error updating lesson progress:', error);
+      return false;
     }
-    return days;
   }
 
+  // Update topic progress
+  async updateTopicProgress(topicId: number, status: string): Promise<boolean> {
+    try {
+      const response = await fetch(`${this.API_URL}/progress/topic/${topicId}`, {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify({ status }),
+      });
+      return response.ok;
+    } catch (error) {
+      console.error('Error updating topic progress:', error);
+      return false;
+    }
+  }
+
+  // Helper methods
   formatMinutes(minutes: number): string {
-    if (minutes < 60) {
-      return `${minutes} phut`;
+    if (!minutes || minutes < 60) {
+      return `${minutes || 0}p`;
     }
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
@@ -215,7 +328,7 @@ class ProgressService {
   }
 
   calculateAccuracy(correct: number, total: number): number {
-    if (total === 0) return 0;
+    if (!total || total === 0) return 0;
     return Math.round((correct / total) * 100);
   }
 }

@@ -21,10 +21,6 @@ export default function Users() {
   const [selectedUsers, setSelectedUsers] = useState<number[]>([]);
   const [roleChangeModal, setRoleChangeModal] = useState<{ user: User; selectedRole: string } | null>(null);
 
-  useEffect(() => {
-    loadUsers();
-  }, []);
-
   const ROLES = [
     { value: 'admin', label: 'Admin' },
     { value: 'teacher', label: 'Giáo viên' },
@@ -46,6 +42,11 @@ export default function Users() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSearch = async () => {
     try {

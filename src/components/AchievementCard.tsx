@@ -1,94 +1,102 @@
-import achievementService, { Achievement } from '../services/achievementService';
+import { Achievement } from '../services/achievementService';
+import achievementService from '../services/achievementService';
 
 interface AchievementCardProps {
   achievement: Achievement;
-  isUnlocked?: boolean;
-  onClick?: () => void;
+  isUnlocked: boolean;
 }
 
-export default function AchievementCard({ achievement, isUnlocked = false, onClick }: AchievementCardProps) {
-  const icon = achievementService.getAchievementIcon(achievement.code);
-  const rarity = achievementService.getAchievementRarity(achievement);
+export default function AchievementCard({ achievement, isUnlocked }: AchievementCardProps) {
+  // Get icon from achievement or use default icons map
+  const displayIcon = achievement.icon || achievementService.getAchievementIcon(achievement.code);
+
+  const getRarityColor = (rarity?: string) => {
+    switch (rarity) {
+      case 'legendary':
+        return {
+          bg: 'from-yellow-500/20 to-orange-500/20',
+          border: 'border-yellow-500/40',
+          glow: '0 0 20px rgba(251, 191, 36, 0.4)',
+          icon: 'text-yellow-400',
+        };
+      case 'epic':
+        return {
+          bg: 'from-purple-500/20 to-pink-500/20',
+          border: 'border-purple-500/40',
+          glow: '0 0 20px rgba(168, 85, 247, 0.4)',
+          icon: 'text-purple-400',
+        };
+      case 'rare':
+        return {
+          bg: 'from-blue-500/20 to-cyan-500/20',
+          border: 'border-blue-500/40',
+          glow: '0 0 20px rgba(59, 130, 246, 0.4)',
+          icon: 'text-blue-400',
+        };
+      default:
+        return {
+          bg: 'from-slate-500/20 to-slate-600/20',
+          border: 'border-slate-500/40',
+          glow: 'none',
+          icon: 'text-slate-400',
+        };
+    }
+  };
+
+  const rarityStyle = getRarityColor(achievement.rarity);
 
   return (
     <div
-      onClick={onClick}
-      className={`group relative rounded-2xl p-5 cursor-pointer transition-all duration-300 animate-fade-in-up ${
-        isUnlocked 
-          ? 'opacity-100' 
-          : 'opacity-50 grayscale hover:opacity-70 hover:grayscale-0'
+      className={`relative p-5 rounded-2xl transition-all duration-300 ${
+        isUnlocked ? 'cursor-pointer hover:scale-105' : 'opacity-60'
       }`}
       style={{
-        background: isUnlocked 
-          ? 'linear-gradient(145deg, #1a1a2e, #16213e)' 
-          : 'rgba(255, 255, 255, 0.03)',
-        border: `1px solid ${isUnlocked ? 'rgba(99, 102, 241, 0.3)' : 'rgba(255, 255, 255, 0.05)'}`,
-        boxShadow: isUnlocked 
-          ? '0 8px 32px rgba(99, 102, 241, 0.2)' 
-          : '0 4px 16px rgba(0, 0, 0, 0.2)',
-      }}
-      onMouseEnter={(e) => {
-        if (isUnlocked) {
-          e.currentTarget.style.transform = 'translateY(-4px)';
-          e.currentTarget.style.boxShadow = '0 16px 40px rgba(99, 102, 241, 0.3)';
-        }
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.transform = 'translateY(0)';
-        e.currentTarget.style.boxShadow = isUnlocked 
-          ? '0 8px 32px rgba(99, 102, 241, 0.2)' 
-          : '0 4px 16px rgba(0, 0, 0, 0.2)';
+        background: `linear-gradient(145deg, rgba(26, 26, 46, 0.9), rgba(22, 33, 62, 0.9))`,
+        border: `1px solid ${isUnlocked ? rarityStyle.border : 'rgba(255, 255, 255, 0.08)'}`,
+        boxShadow: isUnlocked ? rarityStyle.glow : '0 4px 16px rgba(0, 0, 0, 0.3)',
       }}
     >
-      {/* Lock overlay for unearned */}
+      {/* Lock overlay for locked achievements */}
       {!isUnlocked && (
-        <div className="absolute inset-0 flex items-center justify-center rounded-2xl"
-          style={{ background: 'rgba(0, 0, 0, 0.3)' }}
-        >
-          <span className="text-2xl opacity-50">🔒</span>
+        <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/30">
+          <span className="text-3xl">🔒</span>
         </div>
       )}
 
       {/* Icon */}
-      <div className="flex items-start gap-4">
-        <div 
-          className={`w-14 h-14 rounded-xl flex items-center justify-center text-2xl ${
-            isUnlocked ? '' : 'grayscale opacity-50'
-          }`}
-          style={{
-            background: isUnlocked
-              ? `linear-gradient(135deg, ${rarity.bgColor.includes('yellow') ? '#f59e0b' : rarity.bgColor.includes('purple') ? '#a855f7' : rarity.bgColor.includes('blue') ? '#3b82f6' : '#64748b'}, ${rarity.bgColor.includes('yellow') ? '#d97706' : rarity.bgColor.includes('purple') ? '#9333ea' : rarity.bgColor.includes('blue') ? '#2563eb' : '#475569'})`
-              : 'rgba(100, 116, 139, 0.2)',
-            boxShadow: isUnlocked ? `0 8px 24px ${rarity.bgColor.includes('yellow') ? 'rgba(245, 158, 11, 0.4)' : rarity.bgColor.includes('purple') ? 'rgba(168, 85, 247, 0.4)' : rarity.bgColor.includes('blue') ? 'rgba(59, 130, 246, 0.4)' : 'rgba(100, 116, 139, 0.3)'}` : 'none',
-          }}
-        >
-          {icon}
-        </div>
-
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <h4 className="font-bold text-white truncate">{achievement.name}</h4>
-            {achievement.xpReward > 0 && (
-              <span className={`text-xs font-semibold ${rarity.color}`}>
-                +{achievement.xpReward} XP
-              </span>
-            )}
-          </div>
-          <p className="text-sm text-slate-400 line-clamp-2">{achievement.description}</p>
-          
-          {/* Rarity Badge */}
-          <span className={`inline-block mt-2 px-2 py-0.5 rounded-full text-xs font-medium border ${rarity.bgColor} ${rarity.color}`}>
-            {rarity.label}
-          </span>
-        </div>
+      <div
+        className={`w-14 h-14 rounded-xl flex items-center justify-center text-3xl mb-4 ${
+          isUnlocked ? '' : 'grayscale'
+        }`}
+        style={{
+          background: `linear-gradient(145deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05))`,
+        }}
+      >
+        {displayIcon}
       </div>
 
-      {/* Unlocked date */}
-      {isUnlocked && achievement.achievedAt && (
-        <div className="mt-4 pt-3" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}>
-          <p className="text-xs text-slate-500">
-            Duoc khai pha: {new Date(achievement.achievedAt).toLocaleDateString('vi-VN')}
-          </p>
+      {/* Title */}
+      <h4 className="text-base font-bold text-white mb-1">{achievement.name}</h4>
+      
+      {/* Description */}
+      <p className="text-sm text-slate-400 mb-3">{achievement.description}</p>
+
+      {/* XP Reward */}
+      {isUnlocked && (
+        <div className="flex items-center gap-2">
+          <span className="px-2 py-1 rounded-lg text-xs font-semibold bg-yellow-500/20 text-yellow-400">
+            +{achievement.xpReward} XP
+          </span>
+        </div>
+      )}
+
+      {/* Progress for locked achievements */}
+      {!isUnlocked && achievement.criteria && (
+        <div className="mt-3">
+          <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
+            <span>Progress</span>
+            <span>{achievement.criteria}</span>
+          </div>
         </div>
       )}
     </div>

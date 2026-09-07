@@ -22,10 +22,6 @@ export default function Exams() {
   const [filterSubject, setFilterSubject] = useState<number | ''>('');
   const [filterType, setFilterType] = useState('');
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
   const loadData = async () => {
     try {
       const [examsData, subjectsData] = await Promise.all([
@@ -40,6 +36,11 @@ export default function Exams() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleDelete = async (id: number) => {
     if (window.confirm('Bạn có chắc muốn xóa đề thi này?')) {
@@ -81,7 +82,7 @@ export default function Exams() {
   if (loading) return <Loading message="Đang tải đề thi..." />;
 
   return (
-    <div>
+    <div className="theme-warm">
       <Breadcrumb items={[{ label: 'Đề thi' }]} />
 
       <div className="flex justify-between items-center mb-8 animate-fade-in-down">

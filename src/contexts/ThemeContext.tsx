@@ -2,11 +2,20 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 
 type Theme = 'light' | 'dark';
 
+interface ThemeColors {
+  background: string;
+  surface: string;
+  border: string;
+  text: string;
+  textSecondary: string;
+}
+
 interface ThemeContextType {
   theme: Theme;
   isDark: boolean;
   toggleTheme: () => void;
   setTheme: (theme: Theme) => void;
+  colors: ThemeColors;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -33,8 +42,24 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setThemeState(newTheme);
   };
 
+  const lightColors: ThemeColors = {
+    background: '#ffffff',
+    surface: '#f5f5f5',
+    border: '#e0e0e0',
+    text: '#1a1a1a',
+    textSecondary: '#666666',
+  };
+
+  const darkColors: ThemeColors = {
+    background: '#0f172a',
+    surface: '#1e293b',
+    border: '#334155',
+    text: '#f8fafc',
+    textSecondary: '#94a3b8',
+  };
+
   return (
-    <ThemeContext.Provider value={{ theme, isDark: theme === 'dark', toggleTheme, setTheme }}>
+    <ThemeContext.Provider value={{ theme, isDark: theme === 'dark', toggleTheme, setTheme, colors: theme === 'dark' ? darkColors : lightColors }}>
       {children}
     </ThemeContext.Provider>
   );

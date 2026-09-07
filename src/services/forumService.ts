@@ -1,13 +1,5 @@
 import api from './api';
 
-// Helper to normalize array responses from backend
-const normalizeArray = (data: any): any[] => {
-  if (Array.isArray(data)) return data;
-  if (data?.data) return Array.isArray(data.data) ? data.data : [data.data];
-  if (data?.items) return data.items;
-  return [];
-};
-
 export interface ForumPost {
   id: number;
   userId: number;

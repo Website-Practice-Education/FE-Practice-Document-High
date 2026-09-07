@@ -406,7 +406,6 @@ export default function FloatingChat() {
                     <div className="p-3 space-y-2">
                       {(Array.isArray(messages) ? messages : []).map((msg) => {
                         const isMine = msg.userId === userId;
-                        const isPending = msg.id < 0;
                         return (
                           <div
                             key={msg.id}

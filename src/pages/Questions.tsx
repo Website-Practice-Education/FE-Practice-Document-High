@@ -23,10 +23,6 @@ export default function Questions() {
   const [filterSubject, setFilterSubject] = useState<number | ''>('');
   const [previewQuestion, setPreviewQuestion] = useState<Question | null>(null);
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
   const loadData = async () => {
     try {
       const [questionsData, subjectsData] = await Promise.all([
@@ -41,6 +37,11 @@ export default function Questions() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleDelete = async (id: number) => {
     if (window.confirm('Bạn có chắc muốn xóa câu hỏi này?')) {
@@ -94,7 +95,7 @@ export default function Questions() {
   if (loading) return <Loading message="Đang tải câu hỏi..." />;
 
   return (
-    <div>
+    <div className="theme-warm">
       <Breadcrumb items={[{ label: 'Câu hỏi' }]} />
 
       <div className="flex justify-between items-center mb-8 animate-fade-in-down">

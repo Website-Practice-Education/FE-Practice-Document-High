@@ -30,22 +30,11 @@ export default function StudySpaces() {
   const [inviteCode, setInviteCode] = useState('');
   const [currentTime, setCurrentTime] = useState(new Date());
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
   const [newSpace, setNewSpace] = useState<CreateSpaceRequest>({
     name: '',
     description: '',
     spaceType: 'public',
   });
-
-  useEffect(() => {
-    loadData();
-  }, []);
 
   const loadData = async () => {
     try {
@@ -67,6 +56,18 @@ export default function StudySpaces() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const handleCreateSpace = async () => {
     if (!newSpace.name.trim()) return;
@@ -203,34 +204,36 @@ export default function StudySpaces() {
 
   return (
     <div>
+      {/* Top Bar - Current Time */}
+      <div className="flex justify-end mb-6 animate-fade-in-down">
+        <div className="text-right">
+          <p className="text-xs text-slate-500 uppercase tracking-wide">Thoi gian hien tai</p>
+          <p className="text-3xl font-bold font-[family-name:var(--font-display)] bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
+            {currentTime.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+          </p>
+        </div>
+      </div>
+
       {/* Header */}
-      <div className="flex items-center justify-between mb-8 animate-fade-in-down">
+      <div className="flex items-center justify-between mb-8 animate-fade-in-up">
         <div className="page-header !mb-0">
           <h1 className="page-title">Phong Hoc</h1>
           <p className="page-subtitle">Hoc cung nhau voi chat thoi gian thuc</p>
         </div>
-        <div className="flex items-center gap-6">
-          <div className="text-right">
-            <p className="text-xs text-slate-500 uppercase tracking-wide">Thoi gian hien tai</p>
-            <p className="text-2xl font-bold font-[family-name:var(--font-display)] bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
-              {currentTime.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-            </p>
-          </div>
-          <div className="flex gap-3">
-            <button 
-              onClick={() => setShowJoinModal(true)} 
-              className="btn-secondary"
-              style={{ border: '1px solid rgba(99, 102, 241, 0.2)' }}
-            >
-              Tham gia bang ma
-            </button>
-            <button 
-              onClick={() => setShowCreateModal(true)} 
-              className="btn-primary"
-            >
-              + Tao phong moi
-            </button>
-          </div>
+        <div className="flex gap-3">
+          <button 
+            onClick={() => setShowJoinModal(true)} 
+            className="btn-secondary"
+            style={{ border: '1px solid rgba(99, 102, 241, 0.2)' }}
+          >
+            Tham gia bang ma
+          </button>
+          <button 
+            onClick={() => setShowCreateModal(true)} 
+            className="btn-primary"
+          >
+            + Tao phong moi
+          </button>
         </div>
       </div>
 

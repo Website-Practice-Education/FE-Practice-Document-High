@@ -25,10 +25,6 @@ export default function ExamForm({ exam, onSave, onCancel }: ExamFormProps) {
     isPublic: exam?.isPublic ?? true,
   });
 
-  useEffect(() => {
-    loadSubjects();
-  }, []);
-
   const loadSubjects = async () => {
     try {
       const data = await SubjectService.getAll();
@@ -37,6 +33,11 @@ export default function ExamForm({ exam, onSave, onCancel }: ExamFormProps) {
       console.error('Error loading subjects:', error);
     }
   };
+
+  useEffect(() => {
+    loadSubjects();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

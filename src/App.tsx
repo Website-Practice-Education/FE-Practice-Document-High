@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import 'react-toastify/dist/ReactToastify.css';
@@ -8,11 +8,9 @@ import Subjects from './pages/Subjects';
 import Questions from './pages/Questions';
 import Exams from './pages/Exams';
 import Users from './pages/Users';
-import StudySpaces from './pages/StudySpaces';
-import StudySpaceRoom from './pages/StudySpaceRoom';
+import StudyHub from './pages/StudyHub';
 import GlobalChat from './pages/GlobalChat';
 import Forum from './pages/Forum';
-import SelfStudyRoom from './pages/SelfStudyRoom';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import Login from './pages/Login';
@@ -27,7 +25,6 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import Leaderboard from './pages/Leaderboard';
 import Achievements from './pages/Achievements';
 import Progress from './pages/Progress';
-import LiveSessions from './pages/LiveSessions';
 import Notifications from './pages/Notifications';
 
 export default function App() {
@@ -55,16 +52,14 @@ export default function App() {
             <Route path="/users" element={<Users />} />
             <Route path="/chat" element={<GlobalChat />} />
             <Route path="/forum" element={<Forum />} />
-            <Route path="/study-spaces" element={<StudySpaces />} />
-            <Route path="/study-spaces/:id" element={<StudySpaceRoom />} />
-            <Route path="/self-study/:id" element={<SelfStudyRoom />} />
+            <Route path="/study-hub" element={<StudyHub />} />
             <Route path="/documents" element={<Documents />} />
             <Route path="/moderation" element={<Moderation />} />
             {/* Gamification & Social Features */}
             <Route path="/leaderboard" element={<Leaderboard />} />
             <Route path="/achievements" element={<Achievements />} />
             <Route path="/progress" element={<Progress />} />
-            <Route path="/live-sessions" element={<LiveSessions />} />
+            <Route path="/live-sessions" element={<StudyHub />} />
             <Route path="/notifications" element={<Notifications />} />
           </Route>
         </Routes>

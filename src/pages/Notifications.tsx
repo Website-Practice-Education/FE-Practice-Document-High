@@ -1,13 +1,5 @@
 import { useState, useEffect } from 'react';
-
-interface Notification {
-  id: number;
-  title: string;
-  message: string;
-  type: 'achievement' | 'streak' | 'friend' | 'system' | 'exam';
-  isRead: boolean;
-  createdAt: string;
-}
+import notificationService, { Notification } from '../services/notificationService';
 
 export default function Notifications() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -16,70 +8,36 @@ export default function Notifications() {
 
   useEffect(() => {
     loadNotifications();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadNotifications = async () => {
     setLoading(true);
-    // Mock data
-    setTimeout(() => {
-      setNotifications([
-        {
-          id: 1,
-          title: '🎉 Chuc mung!',
-          message: 'Ban da khoai pha thanh tich "Nguoi hoc tot" - 100 cau hoi',
-          type: 'achievement',
-          isRead: false,
-          createdAt: new Date(Date.now() - 1000 * 60 * 5).toISOString(),
-        },
-        {
-          id: 2,
-          title: '🔥 Streak moi!',
-          message: 'Ban da dat duoc 5 ngay lien tiep! Tiep tuc hoc nhe.',
-          type: 'streak',
-          isRead: false,
-          createdAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-        },
-        {
-          id: 3,
-          title: '👋 Loi moi ket ban',
-          message: 'Nguyen Van A muon ket ban voi ban',
-          type: 'friend',
-          isRead: true,
-          createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
-        },
-        {
-          id: 4,
-          title: '📝 Bai thi sap dien ra',
-          message: 'Bai thi giua ky mon Toan se dien ra vao ngay mai',
-          type: 'exam',
-          isRead: true,
-          createdAt: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
-        },
-        {
-          id: 5,
-          title: '⭐ Tang cap!',
-          message: 'Ban da len Level 15! Tiep tuc phat huy nhe.',
-          type: 'achievement',
-          isRead: true,
-          createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-        },
-      ]);
+    try {
+      const data = await notificationService.getNotifications();
+      setNotifications(data);
+    } catch (error) {
+      console.error('Failed to load notifications:', error);
+    } finally {
       setLoading(false);
-    }, 500);
+    }
   };
 
-  const markAsRead = (id: number) => {
+  const markAsRead = async (id: number) => {
     setNotifications(notifications.map(n => 
       n.id === id ? { ...n, isRead: true } : n
     ));
+    await notificationService.markAsRead(id);
   };
 
-  const markAllAsRead = () => {
+  const markAllAsRead = async () => {
     setNotifications(notifications.map(n => ({ ...n, isRead: true })));
+    await notificationService.markAllAsRead();
   };
 
-  const deleteNotification = (id: number) => {
+  const deleteNotification = async (id: number) => {
     setNotifications(notifications.filter(n => n.id !== id));
+    await notificationService.deleteNotification(id);
   };
 
   const filteredNotifications = notifications.filter(n => 
@@ -98,7 +56,7 @@ export default function Notifications() {
     }
   };
 
-  const getTypeColor = (type: string) => {
+  const _getTypeColor = (type: string) => {
     switch (type) {
       case 'achievement': return 'from-yellow-500/20 to-orange-500/20 border-yellow-500/30';
       case 'streak': return 'from-orange-500/20 to-red-500/20 border-orange-500/30';

@@ -15,8 +15,7 @@ const navItems = [
   { path: '/users', label: 'Nguoi dung', icon: 'users' as const },
   { path: '/chat', label: 'Chat tong', icon: 'chat' as const },
   { path: '/forum', label: 'Dien dan', icon: 'forum' as const },
-  { path: '/study-spaces', label: 'Phong hoc', icon: 'study-spaces' as const },
-  { path: '/live-sessions', label: 'Phong live', icon: 'live' as const },
+  { path: '/study-hub', label: 'Study Hub', icon: 'study-spaces' as const },
 ];
 
 export default function Sidebar() {
@@ -25,6 +24,15 @@ export default function Sidebar() {
   const [userInfo, setUserInfo] = useState({ fullName: '', email: '', role: '' });
   const [isAdmin, setIsAdmin] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const fetchPendingCount = async () => {
+    try {
+      const response = await moderationService.getPendingCount();
+      setPendingCount(response.count);
+    } catch (error) {
+      console.error('Failed to fetch pending count:', error);
+    }
+  };
 
   useEffect(() => {
     const user = AuthService.getCurrentUser();
@@ -50,15 +58,6 @@ export default function Sidebar() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
-  const fetchPendingCount = async () => {
-    try {
-      const response = await moderationService.getPendingCount();
-      setPendingCount(response.count);
-    } catch (error) {
-      console.error('Failed to fetch pending count:', error);
-    }
-  };
 
   const handleLogout = () => {
     AuthService.logout();

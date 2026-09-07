@@ -23,16 +23,10 @@ export default function Moderation() {
   
   // Modal states
   const [showRejectModal, setShowRejectModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<SharedDocument | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [actionNotes, setActionNotes] = useState('');
-
-  useEffect(() => {
-    fetchDocuments();
-    fetchPendingCount();
-  }, [activeTab, pagination.currentPage]);
 
   const fetchDocuments = async () => {
     setLoading(true);
@@ -47,21 +41,25 @@ export default function Moderation() {
         response = await moderationService.getDocumentsByStatus(activeTab, pagination.currentPage, pagination.pageSize);
       }
 
-      const normalizedDocuments = Array.isArray(response?.data)
-        ? response.data
-        : Array.isArray(response?.data?.items)
-          ? response.data.items
-          : Array.isArray(response?.data?.data)
-            ? response.data.data
-            : Array.isArray(response?.data?.documents)
-              ? response.data.documents
-              : [];
+      const data = response?.data as any;
+      const res = response as any;
+      let normalizedDocuments: any[] = [];
+
+      if (Array.isArray(data)) {
+        normalizedDocuments = data;
+      } else if (Array.isArray(data?.items)) {
+        normalizedDocuments = data.items;
+      } else if (Array.isArray(data?.data)) {
+        normalizedDocuments = data.data;
+      } else if (Array.isArray(data?.documents)) {
+        normalizedDocuments = data.documents;
+      }
 
       setDocuments(normalizedDocuments);
       setPagination(prev => ({
         ...prev,
-        totalItems: Number(response?.pagination?.totalItems ?? response?.data?.pagination?.totalItems ?? normalizedDocuments.length ?? 0),
-        totalPages: Number(response?.pagination?.totalPages ?? response?.data?.pagination?.totalPages ?? 1)
+        totalItems: Number(res?.pagination?.totalItems ?? data?.pagination?.totalItems ?? normalizedDocuments.length ?? 0),
+        totalPages: Number(res?.pagination?.totalPages ?? data?.pagination?.totalPages ?? 1)
       }));
     } catch (err: any) {
       console.error('Error fetching documents:', err);
@@ -81,11 +79,16 @@ export default function Moderation() {
     try {
       const response = await moderationService.getPendingCount();
       setPendingCount(response.count);
-    } catch (error) {
+    } catch (_error) {
       // Don't show error for pending count - user might not have permission
-      console.error('Failed to fetch pending count:', error);
     }
   };
+
+  useEffect(() => {
+    fetchDocuments();
+    fetchPendingCount();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, pagination.currentPage]);
 
   const handleApprove = async (id: number) => {
     try {
@@ -98,7 +101,7 @@ export default function Moderation() {
         next.delete(id);
         return next;
       });
-    } catch (error) {
+    } catch (_error) {
       toast.error('Không thể phê duyệt tài liệu');
     }
   };
@@ -116,7 +119,7 @@ export default function Moderation() {
       setSelectedDocument(null);
       fetchDocuments();
       fetchPendingCount();
-    } catch (error) {
+    } catch (_error) {
       toast.error('Không thể từ chối tài liệu');
     }
   };
@@ -133,7 +136,7 @@ export default function Moderation() {
       setActionNotes('');
       fetchDocuments();
       fetchPendingCount();
-    } catch (error) {
+    } catch (_error) {
       toast.error('Không thể phê duyệt các tài liệu đã chọn');
     }
   };
@@ -155,7 +158,7 @@ export default function Moderation() {
       setSelectedIds(new Set());
       fetchDocuments();
       fetchPendingCount();
-    } catch (error) {
+    } catch (_error) {
       toast.error('Không thể từ chối các tài liệu đã chọn');
     }
   };
@@ -167,7 +170,7 @@ export default function Moderation() {
       toast.success('Đã xóa tài liệu');
       fetchDocuments();
       fetchPendingCount();
-    } catch (error) {
+    } catch (_error) {
       toast.error('Không thể xóa tài liệu');
     }
   };
@@ -223,7 +226,7 @@ export default function Moderation() {
   };
 
   return (
-    <div className="p-6">
+    <div className="theme-gray p-6">
       {/* Error State */}
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-6 mb-6">

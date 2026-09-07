@@ -24,10 +24,6 @@ export default function QuestionForm({ question, onSave, onCancel }: QuestionFor
     isActive: question?.isActive ?? true,
   });
 
-  useEffect(() => {
-    loadSubjects();
-  }, []);
-
   const loadSubjects = async () => {
     try {
       const data = await SubjectService.getAll();
@@ -36,6 +32,11 @@ export default function QuestionForm({ question, onSave, onCancel }: QuestionFor
       console.error('Error loading subjects:', error);
     }
   };
+
+  useEffect(() => {
+    loadSubjects();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

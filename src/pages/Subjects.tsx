@@ -11,10 +11,6 @@ export default function Subjects() {
   const [showForm, setShowForm] = useState(false);
   const [editingSubject, setEditingSubject] = useState<Subject | undefined>();
 
-  useEffect(() => {
-    loadSubjects();
-  }, []);
-
   const loadSubjects = async () => {
     try {
       const data = await SubjectService.getAll();
@@ -25,6 +21,11 @@ export default function Subjects() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadSubjects();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleDelete = async (id: number) => {
     if (window.confirm('Bạn có chắc muốn xóa môn học này?')) {

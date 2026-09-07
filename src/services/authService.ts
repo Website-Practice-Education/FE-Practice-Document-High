@@ -98,6 +98,18 @@ export const AuthService = {
     return userStr ? JSON.parse(userStr) : null;
   },
 
+  getUserId: (): number => {
+    const token = localStorage.getItem('token');
+    if (!token) return 0;
+    try {
+      const payload = token.split('.')[1];
+      const decoded = JSON.parse(atob(payload));
+      return decoded.userId || decoded.sub || decoded.id || 0;
+    } catch {
+      return 0;
+    }
+  },
+
   isAuthenticated: (): boolean => {
     return !!localStorage.getItem('token');
   },
