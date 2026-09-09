@@ -437,8 +437,7 @@ export default function StudyHub() {
       alert('Không thể thêm nhạc từ YouTube. Vui lòng kiểm tra lại link.');
     }
   };
-
-  const handleUploadMusic = async (file: File, title: string, artist?: string) => {
+    const handleUploadMusic = async (file: File, title: string, artist?: string) => {
     if (!selectedRoom) return;
     try {
       const track = await musicService.upload(selectedRoom.id, file, title, artist);
