@@ -1589,45 +1589,147 @@ export default function StudyHub() {
       {/* FRIENDS TAB */}
       {activeTab === 'friends' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Requests */}
+          {/* Friend Requests - Card Style */}
           {requests.length > 0 && (
-            <div className="rounded-2xl p-6" style={{ background: 'linear-gradient(145deg, #1a1a2e, #16213e)', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
-              <h3 className="font-bold text-white mb-4">Loi moi ket ban</h3>
-              <div className="space-y-3">
+            <div className="rounded-2xl overflow-hidden" style={{ background: 'linear-gradient(145deg, #1a1a2e, #16213e)', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+              {/* Header */}
+              <div className="flex items-center justify-between p-5 border-b border-white/10">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
+                    <span className="text-lg">🔔</span>
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-white text-lg">Lời mời kết bạn</h3>
+                    <p className="text-xs text-slate-400">{requests.length} lời mời chờ xác nhận</p>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Requests List */}
+              <div className="divide-y divide-white/5">
                 {requests.map((req) => (
-                  <div key={req.id} className="flex items-center gap-4 p-4 rounded-xl bg-white/5">
-                    <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold">{req.userName?.charAt(0).toUpperCase()}</div>
-                    <div className="flex-1">
-                      <p className="font-semibold text-white">{req.userName}</p>
-                      <p className="text-xs text-slate-500">{new Date(req.createdAt).toLocaleDateString('vi-VN')}</p>
+                  <div key={req.id} className="flex items-center gap-4 px-5 py-4 hover:bg-white/5 transition-colors group">
+                    {/* Avatar */}
+                    <div className="relative">
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-lg">
+                        {req.userName?.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-amber-500 border-2 border-[#1a1a2e] flex items-center justify-center">
+                        <span className="text-[8px] font-bold text-white">!</span>
+                      </div>
                     </div>
-                    <button onClick={() => friendService.acceptRequest(req.id).then(loadData)} className="btn-primary !px-3 !py-1.5 !text-xs">Chap nhan</button>
-                    <button onClick={() => friendService.declineRequest(req.id).then(loadData)} className="btn-secondary !px-3 !py-1.5 !text-xs">Tu choi</button>
+                    
+                    {/* User Info */}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-white">{req.userName}</p>
+                      <div className="flex items-center gap-2 text-xs text-slate-400">
+                        <span>🕐</span>
+                        <span>{new Date(req.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                      </div>
+                    </div>
+                    
+                    {/* Actions */}
+                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button 
+                        onClick={() => friendService.acceptRequest(req.id).then(loadData)} 
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 text-sm font-semibold transition-colors"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        Chấp nhận
+                      </button>
+                      <button 
+                        onClick={() => friendService.declineRequest(req.id).then(loadData)} 
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 text-sm font-semibold transition-colors"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                        Từ chối
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
           )}
           
-          {/* Friends List */}
-          <div className="rounded-2xl p-6" style={{ background: 'linear-gradient(145deg, #1a1a2e, #16213e)', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-white">Ban be cua toi</h3>
-              <button onClick={() => setShowAddFriendModal(true)} className="text-sm text-indigo-400 hover:text-indigo-300 font-semibold">+ Them ban</button>
+          {/* Friends List - Table Style */}
+          <div className="rounded-2xl overflow-hidden" style={{ background: 'linear-gradient(145deg, #1a1a2e, #16213e)', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+            {/* Header */}
+            <div className="flex items-center justify-between p-5 border-b border-white/10">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center">
+                  <span className="text-lg">👥</span>
+                </div>
+                <div>
+                  <h3 className="font-bold text-white text-lg">Danh sách bạn bè</h3>
+                  <p className="text-xs text-slate-400">{friends.length} người bạn</p>
+                </div>
+              </div>
+              <button onClick={() => setShowAddFriendModal(true)} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30 text-sm font-semibold transition-all">
+                <span className="text-lg">+</span> Thêm bạn
+              </button>
             </div>
+            
+            {/* Table Header */}
+            {friends.length > 0 && (
+              <div className="grid grid-cols-12 gap-4 px-5 py-3 bg-white/5 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                <div className="col-span-5">Người dùng</div>
+                <div className="col-span-4">Ngày kết bạn</div>
+                <div className="col-span-3 text-right">Thao tác</div>
+              </div>
+            )}
+            
+            {/* Table Body */}
             {friends.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="empty-symbol">—</div>
-                <p className="text-slate-400">Chua co ban be</p>
+              <div className="text-center py-16">
+                <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-white/5 flex items-center justify-center">
+                  <span className="text-4xl opacity-50">👤</span>
+                </div>
+                <p className="text-slate-400 font-medium">Chưa có bạn bè</p>
+                <p className="text-slate-500 text-sm mt-1">Bắt đầu kết nối với mọi người</p>
               </div>
             ) : (
-              <div className="space-y-2">
-                {friends.map((friend) => (
-                  <div key={friend.id} className="flex items-center gap-4 p-4 rounded-xl bg-white/5">
-                    <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold">{friend.friendName?.charAt(0).toUpperCase()}</div>
-                    <div className="flex-1">
-                      <p className="font-semibold text-white">{friend.friendName}</p>
-                      <p className="text-xs text-slate-500">Ban be tu {new Date(friend.createdAt).toLocaleDateString('vi-VN')}</p>
+              <div className="divide-y divide-white/5">
+                {friends.map((friend, index) => (
+                  <div key={friend.id} className="grid grid-cols-12 gap-4 px-5 py-4 items-center hover:bg-white/5 transition-colors group">
+                    {/* User Info */}
+                    <div className="col-span-5 flex items-center gap-3">
+                      <div className="relative">
+                        <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-lg">
+                          {friend.friendName?.charAt(0).toUpperCase()}
+                        </div>
+                        {/* Online indicator */}
+                        <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-[#1a1a2e]" title="Đang online"></div>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-white truncate">{friend.friendName}</p>
+                        <p className="text-xs text-slate-500">ID: #{friend.id}</p>
+                      </div>
+                    </div>
+                    
+                    {/* Date */}
+                    <div className="col-span-4">
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="text-slate-400">🗓️</span>
+                        <span className="text-slate-300">{new Date(friend.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                      </div>
+                    </div>
+                    
+                    {/* Actions */}
+                    <div className="col-span-3 flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button className="p-2 rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors" title="Nhắn tin">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                        </svg>
+                      </button>
+                      <button className="p-2 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors" title="Xóa bạn">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7a4 4 0 11-8 0 4 4 0 018 0zM9.89 19.38l1.123-6.432a1.5 1.5 0 012.982-.006l1.123 6.432a1.5 1.5 0 01-2.982.006L9.89 19.38z" />
+                        </svg>
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -1714,29 +1816,94 @@ export default function StudyHub() {
       {/* Add Friend Modal */}
       {showAddFriendModal && (
         <div className="fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4">
-          <div className="rounded-2xl p-6 w-full max-w-md animate-scale-in" style={{ background: 'linear-gradient(145deg, #1a1a2e, #16213e)', border: '1px solid rgba(255, 255, 255, 0.1)', boxShadow: '0 32px 64px rgba(0, 0, 0, 0.5)' }}>
-            <h2 className="text-xl font-bold text-white mb-5">Them ban be</h2>
-            <div className="flex gap-2">
-              <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && friendService.searchUsers(searchQuery).then(setSearchResults)} className="input-field flex-1" placeholder="Tim theo ten hoac email" />
-              <button onClick={() => friendService.searchUsers(searchQuery).then(setSearchResults)} className="btn-primary">Tim</button>
+          <div className="rounded-2xl overflow-hidden w-full max-w-lg animate-scale-in" style={{ background: 'linear-gradient(145deg, #1a1a2e, #16213e)', border: '1px solid rgba(255, 255, 255, 0.1)', boxShadow: '0 32px 64px rgba(0, 0, 0, 0.5)' }}>
+            {/* Header */}
+            <div className="flex items-center gap-4 p-5 border-b border-white/10">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center">
+                <span className="text-2xl">👤</span>
+              </div>
+              <div className="flex-1">
+                <h2 className="text-xl font-bold text-white">Thêm bạn mới</h2>
+                <p className="text-sm text-slate-400">Tìm kiếm người dùng để kết bạn</p>
+              </div>
+              <button 
+                onClick={() => { setShowAddFriendModal(false); setSearchQuery(''); setSearchResults([]); }} 
+                className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+              >
+                <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
+            
+            {/* Search Input */}
+            <div className="p-5">
+              <div className="relative">
+                <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input 
+                  type="text" 
+                  value={searchQuery} 
+                  onChange={(e) => setSearchQuery(e.target.value)} 
+                  onKeyDown={(e) => e.key === 'Enter' && friendService.searchUsers(searchQuery).then(setSearchResults)} 
+                  className="w-full bg-white/10 border border-white/20 rounded-xl pl-12 pr-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition-colors" 
+                  placeholder="Nhập tên hoặc email để tìm kiếm..." 
+                />
+              </div>
+              <button 
+                onClick={() => friendService.searchUsers(searchQuery).then(setSearchResults)} 
+                className="w-full mt-3 py-3 rounded-xl bg-indigo-500 text-white font-semibold hover:bg-indigo-600 transition-colors flex items-center justify-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                Tìm kiếm
+              </button>
+            </div>
+            
+            {/* Search Results */}
             {searchResults.length > 0 && (
-              <div className="mt-4 space-y-2 max-h-60 overflow-y-auto">
-                {searchResults.map((user) => (
-                  <div key={user.id} className="flex items-center gap-4 p-4 rounded-xl bg-white/5">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold">{user.name?.charAt(0).toUpperCase()}</div>
-                    <div className="flex-1">
-                      <p className="font-semibold text-white">{user.name}</p>
-                      <p className="text-xs text-slate-500">{user.email}</p>
+              <div className="px-5 pb-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-sm text-slate-400">Kết quả:</span>
+                  <span className="px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400 text-xs font-semibold">{searchResults.length}</span>
+                </div>
+                <div className="space-y-2 max-h-64 overflow-y-auto rounded-xl bg-white/5 p-2">
+                  {searchResults.map((user) => (
+                    <div key={user.id} className="flex items-center gap-4 p-3 rounded-xl hover:bg-white/10 transition-colors">
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
+                        {user.name?.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-white truncate">{user.name}</p>
+                        <p className="text-xs text-slate-400 truncate">{user.email}</p>
+                      </div>
+                      <button 
+                        onClick={() => friendService.sendRequest(user.id).then(() => { alert('Đã gửi lời mời!'); setSearchResults([]); setSearchQuery(''); })} 
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30 text-sm font-semibold transition-colors flex-shrink-0"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                        Thêm bạn
+                      </button>
                     </div>
-                    <button onClick={() => friendService.sendRequest(user.id).then(() => { alert('Da gui loi moi!'); setSearchResults([]); setSearchQuery(''); })} className="btn-primary !px-3 !py-1.5 !text-xs">Them</button>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             )}
-            <div className="flex justify-end mt-6">
-              <button onClick={() => { setShowAddFriendModal(false); setSearchQuery(''); setSearchResults([]); }} className="btn-secondary">Dong</button>
-            </div>
+            
+            {/* Empty State */}
+            {searchResults.length === 0 && searchQuery && (
+              <div className="px-5 pb-5">
+                <div className="text-center py-8 rounded-xl bg-white/5">
+                  <span className="text-4xl mb-3 block">🔍</span>
+                  <p className="text-slate-400">Không tìm thấy người dùng nào</p>
+                  <p className="text-slate-500 text-sm mt-1">Thử tìm với từ khóa khác</p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
