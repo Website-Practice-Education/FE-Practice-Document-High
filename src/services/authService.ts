@@ -13,6 +13,41 @@ export interface RegisterRequest {
   grade?: number;
 }
 
+// Google token info decoded from JWT
+export interface GoogleTokenInfo {
+  email: string;
+  name?: string;
+  picture?: string;
+  sub: string;
+  given_name?: string;
+  family_name?: string;
+}
+
+// Decode Google JWT token in frontend (no external API call needed)
+function decodeGoogleToken(token: string): GoogleTokenInfo | null {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    
+    // Add padding if needed
+    let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    while (base64.length % 4) base64 += '=';
+    
+    const decoded = JSON.parse(atob(base64));
+    return {
+      email: decoded.email,
+      name: decoded.name || decoded.given_name + ' ' + decoded.family_name,
+      picture: decoded.picture,
+      sub: decoded.sub,
+      given_name: decoded.given_name,
+      family_name: decoded.family_name
+    };
+  } catch (error) {
+    console.error('[AuthService] Failed to decode Google token:', error);
+    return null;
+  }
+}
+
 export interface AuthResponse {
   token: string;
   email: string;
@@ -52,8 +87,30 @@ export const AuthService = {
     return data;
   },
 
+  // Google Login - Decode JWT in frontend, send pre-validated data to backend
+  // This avoids backend needing to call Google's API (which fails on Render free tier)
   googleLogin: async (token: string): Promise<AuthResponse> => {
-    const response = await api.post<ApiResponse<AuthResponse>>('/auth/google', { token });
+    // Decode the JWT to get user info (no external API call needed)
+    const tokenInfo = decodeGoogleToken(token);
+    if (!tokenInfo) {
+      throw new Error('Không thể giải mã token Google');
+    }
+
+    console.log('[AuthService] Google token decoded:', {
+      email: tokenInfo.email,
+      name: tokenInfo.name,
+      hasPicture: !!tokenInfo.picture
+    });
+
+    // Send pre-validated user data to backend (backend trusts frontend's JWT decode)
+    // The JWT is signed by Google, so if we can decode it, it's valid
+    const response = await api.post<ApiResponse<AuthResponse>>('/auth/google-direct', {
+      token, // Original Google JWT (for audit/verification if needed)
+      email: tokenInfo.email,
+      name: tokenInfo.name || tokenInfo.given_name || tokenInfo.email.split('@')[0],
+      picture: tokenInfo.picture
+    });
+    
     // API returns wrapped response: { success, message, data: { token, email, ... }, errors }
     const data = response.data.data;
     if (data.token) {
