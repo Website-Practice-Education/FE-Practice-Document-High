@@ -44,15 +44,58 @@ api.interceptors.request.use(
   }
 );
 
+// Flag to track if we're already handling a logout to prevent multiple logout calls
+let isLoggingOut = false;
+
 // Handle 401 responses (unauthorized)
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    const originalRequest = error.config;
+    
+    // Check if it's a 401 error
     if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+      // Prevent multiple logout calls
+      if (isLoggingOut) {
+        return Promise.reject(error);
+      }
+      
+      // Don't auto-logout for auth endpoints - let them fail naturally
+      const isAuthEndpoint = originalRequest.url?.includes('/auth/login') ||
+                             originalRequest.url?.includes('/auth/register') ||
+                             originalRequest.url?.includes('/auth/google');
+      
+      if (isAuthEndpoint) {
+        return Promise.reject(error);
+      }
+      
+      // For other endpoints, show a session expired message instead of auto-logout
+      // This prevents unexpected logout when clicking on pages like StudyHub
+      console.warn('[API] Session may have expired. Please refresh or login again.');
+      
+      // Only logout if we have a token (user was logged in)
+      const hasToken = !!localStorage.getItem('token');
+      if (hasToken) {
+        // Clear auth state but don't redirect immediately
+        // This allows the app to handle the error more gracefully
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        
+        // Dispatch a custom event so components can handle it
+        window.dispatchEvent(new CustomEvent('auth:session-expired', {
+          detail: { message: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.' }
+        }));
+        
+        isLoggingOut = true;
+        
+        // Redirect after a short delay to allow any pending requests to complete
+        setTimeout(() => {
+          window.location.href = '/login';
+          isLoggingOut = false;
+        }, 500);
+      }
     }
+    
     return Promise.reject(error);
   }
 );

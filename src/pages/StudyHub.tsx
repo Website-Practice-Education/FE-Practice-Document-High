@@ -157,9 +157,29 @@ export default function StudyHub() {
   
   // ===== EFFECTS =====
   useEffect(() => {
+    // Listen for session expired events from api interceptor
+    const handleSessionExpired = (e: CustomEvent) => {
+      console.warn('[StudyHub] Session expired:', e.detail?.message);
+      alert(e.detail?.message || 'Phiên đăng nhập đã hết hạn');
+      navigate('/login');
+    };
+    
+    window.addEventListener('auth:session-expired', handleSessionExpired as EventListener);
+    
+    // Listen for manual logout
+    const handleLogout = () => {
+      navigate('/login');
+    };
+    window.addEventListener('auth:logout', handleLogout);
+    
     loadData();
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timer);
+    
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('auth:session-expired', handleSessionExpired as EventListener);
+      window.removeEventListener('auth:logout', handleLogout);
+    };
   }, []);
   
   useEffect(() => {
@@ -186,6 +206,14 @@ export default function StudyHub() {
   
   // ===== DATA LOADING =====
   const loadData = async () => {
+    // Check if user is logged in first
+    const currentToken = localStorage.getItem('token');
+    if (!currentToken) {
+      console.warn('[StudyHub] No token found, redirecting to login');
+      navigate('/login');
+      return;
+    }
+    
     try {
       const [my, myCreated, publicData, friendsData, requestsData] = await Promise.all([
         studySpaceService.getMySpaces(),
@@ -201,8 +229,13 @@ export default function StudyHub() {
       setRequests(requestsData);
       // Mock live rooms from created spaces
       setLiveRooms(myCreated.filter(s => s.spaceType === 'live' || Math.random() > 0.5).slice(0, 3));
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to load data:', error);
+      // If 401 error, don't redirect immediately - let the api interceptor handle it
+      if (error.response?.status !== 401) {
+        // Show user-friendly error for other errors
+        alert('Không thể tải dữ liệu. Vui lòng thử lại sau.');
+      }
     } finally {
       setLoading(false);
     }
@@ -836,67 +869,110 @@ export default function StudyHub() {
   };
   
   // ===== RENDER HELPERS =====
-  const renderRoomCard = (space: StudySpace, index: number, isOwner: boolean = false) => (
-    <div
+  const renderRoomTableRow = (space: StudySpace, isOwner: boolean = false) => (
+    <tr 
       key={space.id}
       onClick={() => loadRoomDetail(space)}
-      className="group relative overflow-hidden rounded-2xl p-6 cursor-pointer animate-fade-in-up"
-      style={{
-        animationDelay: `${index * 100}ms`,
-        background: 'linear-gradient(145deg, #1a1a2e, #16213e)',
-        border: '1px solid rgba(255, 255, 255, 0.08)',
-        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.transform = 'translateY(-8px)';
-        e.currentTarget.style.borderColor = 'rgba(99, 102, 241, 0.3)';
-        e.currentTarget.style.boxShadow = '0 24px 48px rgba(99, 102, 241, 0.2)';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.transform = 'translateY(0)';
-        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
-        e.currentTarget.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.3)';
-      }}
+      className="hover:bg-white/5 cursor-pointer transition-colors group"
     >
-      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-2">
-            <h3 className="font-bold text-white font-[family-name:var(--font-display)] text-lg">{space.name}</h3>
-            {isOwner && (
-              <span className="badge" style={{ background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(245, 158, 11, 0.15))', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.25)' }}>
-                Chu phong
-              </span>
-            )}
+      {/* Name & Description */}
+      <td className="px-4 py-4">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500/30 to-purple-500/30 flex items-center justify-center flex-shrink-0">
+            <span className="text-2xl">📚</span>
           </div>
-          <p className="text-sm text-slate-400 line-clamp-2">{space.description || 'Chua co mo ta'}</p>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <p className="font-semibold text-white truncate">{space.name}</p>
+              {isOwner && (
+                <span className="px-2 py-0.5 rounded text-[10px] font-semibold" style={{ background: 'rgba(251, 191, 36, 0.2)', color: '#f59e0b' }}>
+                  Chủ phòng
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-slate-400 truncate">{space.description || 'Chưa có mô tả'}</p>
+          </div>
         </div>
-        <span className="badge" style={{
-          background: space.spaceType === 'public' ? 'linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(22, 163, 74, 0.15))' : 'linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(79, 70, 229, 0.15))',
+      </td>
+      
+      {/* Type */}
+      <td className="px-4 py-4">
+        <span className="px-3 py-1 rounded-full text-xs font-semibold" style={{
+          background: space.spaceType === 'public' ? 'rgba(34, 197, 94, 0.15)' : 'rgba(99, 102, 241, 0.15)',
           color: space.spaceType === 'public' ? '#22c55e' : '#6366f1',
-          border: space.spaceType === 'public' ? '1px solid rgba(34, 197, 94, 0.25)' : '1px solid rgba(99, 102, 241, 0.25)',
         }}>
-          {space.spaceType === 'public' ? 'Cong khai' : 'Rieng tu'}
+          {space.spaceType === 'public' ? '🌐 Công khai' : '🔒 Riêng tư'}
         </span>
-      </div>
-      <div className="flex items-center justify-between pt-4" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}>
-        <span className="text-sm text-slate-500">{space.memberCount} thanh vien</span>
-        {isOwner ? (
-          <div className="flex gap-2">
-            <button onClick={(e) => handleEditSpace(space, e)} className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all" style={{ background: 'rgba(99, 102, 241, 0.15)', color: '#818cf8', border: '1px solid rgba(99, 102, 241, 0.2)' }}>
-              Sua
+      </td>
+      
+      {/* Members */}
+      <td className="px-4 py-4">
+        <div className="flex items-center gap-2 text-slate-300">
+          <span>👥</span>
+          <span>{space.memberCount} thành viên</span>
+        </div>
+      </td>
+      
+      {/* Date */}
+      <td className="px-4 py-4">
+        <div className="flex items-center gap-2 text-slate-400 text-sm">
+          <span>📅</span>
+          <span>{space.createdAt ? new Date(space.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'}</span>
+        </div>
+      </td>
+      
+      {/* Actions */}
+      <td className="px-4 py-4">
+        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          {isOwner ? (
+            <>
+              <button 
+                onClick={(e) => handleEditSpace(space, e)} 
+                className="p-2 rounded-lg transition-colors" 
+                style={{ background: 'rgba(99, 102, 241, 0.15)', color: '#818cf8' }}
+                title="Sửa phòng"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              </button>
+              <button 
+                onClick={(e) => handleDeleteSpace(space.id, e)} 
+                className="p-2 rounded-lg transition-colors" 
+                style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#f87171' }}
+                title="Xóa phòng"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+            </>
+          ) : (
+            <button 
+              onClick={(e) => handleLeaveSpace(space.id, e)} 
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+              style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#f87171' }}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              Rời phòng
             </button>
-            <button onClick={(e) => handleDeleteSpace(space.id, e)} className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all" style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
-              Xoa
-            </button>
-          </div>
-        ) : (
-          <button onClick={(e) => handleLeaveSpace(space.id, e)} className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all" style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
-            Roi phong
-          </button>
-        )}
-      </div>
-    </div>
+          )}
+        </div>
+      </td>
+    </tr>
+  );
+
+  // Table Header Component
+  const renderTableHeader = () => (
+    <tr className="text-xs font-semibold text-slate-400 uppercase tracking-wider border-b border-white/10">
+      <th className="px-4 py-3 text-left">Phòng học</th>
+      <th className="px-4 py-3 text-left">Loại phòng</th>
+      <th className="px-4 py-3 text-left">Thành viên</th>
+      <th className="px-4 py-3 text-left">Ngày tạo</th>
+      <th className="px-4 py-3 text-right">Thao tác</th>
+    </tr>
   );
   
   // ============= RENDER =============
@@ -1512,75 +1588,279 @@ export default function StudyHub() {
             ))}
           </div>
           
-          {/* My Rooms */}
+          {/* My Rooms - Table Style */}
           {roomTab === 'my-rooms' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {myCreatedSpaces.length === 0 ? (
-                <div className="col-span-full text-center py-20 rounded-3xl glass-card">
-                  <div className="empty-symbol">0</div>
-                  <p className="text-lg font-semibold text-slate-300 mb-2">Ban chua tao phong nao</p>
-                  <button onClick={() => setShowCreateModal(true)} className="text-indigo-400 hover:text-indigo-300 font-medium">Tao phong moi</button>
+            <div className="rounded-2xl overflow-hidden" style={{ background: 'linear-gradient(145deg, #1a1a2e, #16213e)', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+              {/* Header */}
+              <div className="flex items-center justify-between p-5 border-b border-white/10">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center">
+                    <span className="text-lg">📚</span>
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-white text-lg">Phòng của tôi</h3>
+                    <p className="text-xs text-slate-400">{myCreatedSpaces.length} phòng học</p>
+                  </div>
                 </div>
-              ) : myCreatedSpaces.map((space, i) => renderRoomCard(space, i, true))}
+                <button onClick={() => setShowCreateModal(true)} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30 text-sm font-semibold transition-all">
+                  <span className="text-lg">+</span> Tạo phòng mới
+                </button>
+              </div>
+              
+              {myCreatedSpaces.length === 0 ? (
+                <div className="text-center py-16">
+                  <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-white/5 flex items-center justify-center">
+                    <span className="text-4xl opacity-50">📚</span>
+                  </div>
+                  <p className="text-slate-400 font-medium">Chưa có phòng học nào</p>
+                  <p className="text-slate-500 text-sm mt-1">Bắt đầu tạo phòng học mới</p>
+                  <button onClick={() => setShowCreateModal(true)} className="mt-4 px-4 py-2 rounded-xl bg-indigo-500 text-white text-sm font-semibold hover:bg-indigo-600 transition-colors">
+                    + Tạo phòng mới
+                  </button>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-white/5">
+                      {renderTableHeader()}
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                      {myCreatedSpaces.map((space) => renderRoomTableRow(space, true))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
           
-          {/* Joined */}
+          {/* Joined - Table Style */}
           {roomTab === 'joined' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="rounded-2xl overflow-hidden" style={{ background: 'linear-gradient(145deg, #1a1a2e, #16213e)', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+              {/* Header */}
+              <div className="flex items-center justify-between p-5 border-b border-white/10">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center">
+                    <span className="text-lg">🔗</span>
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-white text-lg">Đã tham gia</h3>
+                    <p className="text-xs text-slate-400">{mySpaces.filter(s => !myCreatedSpaces.some(cs => cs.id === s.id)).length} phòng học</p>
+                  </div>
+                </div>
+                <button onClick={() => setRoomTab('public')} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 text-sm font-semibold transition-all">
+                  <span className="text-lg">🔍</span> Khám phá thêm
+                </button>
+              </div>
+              
               {(() => {
                 const joined = mySpaces.filter(s => !myCreatedSpaces.some(cs => cs.id === s.id));
                 return joined.length === 0 ? (
-                  <div className="col-span-full text-center py-20 rounded-3xl glass-card">
-                    <div className="empty-symbol">—</div>
-                    <p className="text-lg font-semibold text-slate-300 mb-2">Ban chua tham gia phong nao</p>
-                    <button onClick={() => setRoomTab('public')} className="text-indigo-400 hover:text-indigo-300 font-medium">Kham pha phong cong khai</button>
+                  <div className="text-center py-16">
+                    <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-white/5 flex items-center justify-center">
+                      <span className="text-4xl opacity-50">🔗</span>
+                    </div>
+                    <p className="text-slate-400 font-medium">Chưa tham gia phòng nào</p>
+                    <p className="text-slate-500 text-sm mt-1">Tham gia các phòng công khai để học cùng nhau</p>
+                    <button onClick={() => setRoomTab('public')} className="mt-4 px-4 py-2 rounded-xl bg-emerald-500 text-white text-sm font-semibold hover:bg-emerald-600 transition-colors">
+                      Khám phá phòng công khai
+                    </button>
                   </div>
-                ) : joined.map((space, i) => renderRoomCard(space, i));
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-white/5">
+                        {renderTableHeader()}
+                      </thead>
+                      <tbody className="divide-y divide-white/5">
+                        {joined.map((space) => renderRoomTableRow(space, false))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
               })()}
             </div>
           )}
           
-          {/* Public */}
+          {/* Public - Table Style */}
           {roomTab === 'public' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {publicSpaces.map((space, i) => (
-                <div key={space.id} onClick={() => handleJoinSpace(space.id)} className="group relative overflow-hidden rounded-2xl p-6 cursor-pointer animate-fade-in-up" style={{ animationDelay: `${i * 100}ms`, background: 'linear-gradient(145deg, #1a1a2e, #16213e)', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
-                  <h3 className="font-bold text-white text-lg mb-2">{space.name}</h3>
-                  <p className="text-sm text-slate-400 line-clamp-2 mb-3">{space.description || 'Chua co mo ta'}</p>
-                  <p className="text-xs text-slate-500">Tao boi {space.creatorName}</p>
-                  <div className="flex items-center justify-between pt-4" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}>
-                    <span className="text-sm text-slate-500">{space.memberCount} thanh vien</span>
-                    <button className="btn-primary !px-4 !py-1.5 !text-xs">Tham gia</button>
+            <div className="rounded-2xl overflow-hidden" style={{ background: 'linear-gradient(145deg, #1a1a2e, #16213e)', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+              {/* Header */}
+              <div className="flex items-center justify-between p-5 border-b border-white/10">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
+                    <span className="text-lg">🌐</span>
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-white text-lg">Phòng công khai</h3>
+                    <p className="text-xs text-slate-400">{publicSpaces.length} phòng học</p>
                   </div>
                 </div>
-              ))}
+              </div>
+              
+              {publicSpaces.length === 0 ? (
+                <div className="text-center py-16">
+                  <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-white/5 flex items-center justify-center">
+                    <span className="text-4xl opacity-50">🌐</span>
+                  </div>
+                  <p className="text-slate-400 font-medium">Không có phòng công khai</p>
+                  <p className="text-slate-500 text-sm mt-1">Hãy là người đầu tiên tạo phòng công khai</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-white/5">
+                      {renderTableHeader()}
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                      {publicSpaces.map((space) => (
+                        <tr 
+                          key={space.id}
+                          onClick={() => handleJoinSpace(space.id)}
+                          className="hover:bg-white/5 cursor-pointer transition-colors group"
+                        >
+                          <td className="px-4 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/30 to-cyan-500/30 flex items-center justify-center flex-shrink-0">
+                                <span className="text-2xl">📚</span>
+                              </div>
+                              <div className="min-w-0">
+                                <p className="font-semibold text-white truncate">{space.name}</p>
+                                <p className="text-xs text-slate-400 truncate">{space.description || 'Chưa có mô tả'}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-4">
+                            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-green-500/15 text-green-400">
+                              🌐 Công khai
+                            </span>
+                          </td>
+                          <td className="px-4 py-4">
+                            <div className="flex items-center gap-2 text-slate-300">
+                              <span>👥</span>
+                              <span>{space.memberCount} thành viên</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-4">
+                            <div className="flex items-center gap-2 text-slate-400 text-sm">
+                              <span>📅</span>
+                              <span>{space.creatorName}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-4">
+                            <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); handleJoinSpace(space.id); }} 
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                                </svg>
+                                Tham gia
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
           
-          {/* Live */}
+          {/* Live - Table Style */}
           {roomTab === 'live' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="rounded-2xl overflow-hidden" style={{ background: 'linear-gradient(145deg, #1a1a2e, #16213e)', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+              {/* Header */}
+              <div className="flex items-center justify-between p-5 border-b border-white/10">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 to-pink-500 flex items-center justify-center animate-pulse">
+                    <span className="text-lg">🔴</span>
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-white text-lg">Phòng đang Live</h3>
+                    <p className="text-xs text-slate-400">{liveRooms.length} phòng đang hoạt động</p>
+                  </div>
+                </div>
+              </div>
+              
               {liveRooms.length === 0 ? (
-                <div className="col-span-full text-center py-20 rounded-3xl glass-card">
-                  <div className="empty-symbol">🔴</div>
-                  <p className="text-lg font-semibold text-slate-300 mb-2">Khong co phong nao dang live</p>
-                </div>
-              ) : liveRooms.map((space, i) => (
-                <div key={space.id} onClick={() => loadRoomDetail(space)} className="group relative overflow-hidden rounded-2xl p-6 cursor-pointer animate-fade-in-up" style={{ animationDelay: `${i * 100}ms`, background: 'linear-gradient(145deg, #1a1a2e, #16213e)', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
-                  <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-red-500 to-pink-500" />
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                    <span className="text-red-400 text-xs font-semibold">DANG LIVE</span>
+                <div className="text-center py-16">
+                  <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-white/5 flex items-center justify-center">
+                    <span className="text-4xl opacity-50">🔴</span>
                   </div>
-                  <h3 className="font-bold text-white text-lg mb-2">{space.name}</h3>
-                  <p className="text-sm text-slate-400 line-clamp-2 mb-3">{space.description || 'Chua co mo ta'}</p>
-                  <div className="flex items-center justify-between pt-4" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}>
-                    <span className="text-sm text-slate-500">{space.memberCount} nguoi</span>
-                    <button className="px-4 py-1.5 rounded-lg bg-red-500/20 text-red-400 text-xs font-semibold">Tham gia ngay</button>
-                  </div>
+                  <p className="text-slate-400 font-medium">Không có phòng nào đang live</p>
+                  <p className="text-slate-500 text-sm mt-1">Các phòng học live sẽ xuất hiện ở đây</p>
                 </div>
-              ))}
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-white/5">
+                      <tr className="text-xs font-semibold text-slate-400 uppercase tracking-wider border-b border-white/10">
+                        <th className="px-4 py-3 text-left">Phòng học</th>
+                        <th className="px-4 py-3 text-left">Trạng thái</th>
+                        <th className="px-4 py-3 text-left">Người xem</th>
+                        <th className="px-4 py-3 text-left">Ngày tạo</th>
+                        <th className="px-4 py-3 text-right">Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                      {liveRooms.map((space) => (
+                        <tr 
+                          key={space.id}
+                          onClick={() => loadRoomDetail(space)}
+                          className="hover:bg-white/5 cursor-pointer transition-colors group"
+                        >
+                          <td className="px-4 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-500/30 to-pink-500/30 flex items-center justify-center flex-shrink-0 relative">
+                                <span className="text-2xl">📚</span>
+                                <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-red-500 animate-pulse"></div>
+                              </div>
+                              <div className="min-w-0">
+                                <p className="font-semibold text-white truncate">{space.name}</p>
+                                <p className="text-xs text-slate-400 truncate">{space.description || 'Đang livestream'}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-4">
+                            <span className="flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-red-500/20 text-red-400">
+                              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                              ĐANG LIVE
+                            </span>
+                          </td>
+                          <td className="px-4 py-4">
+                            <div className="flex items-center gap-2 text-slate-300">
+                              <span>👁️</span>
+                              <span>{space.memberCount} người</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-4">
+                            <div className="flex items-center gap-2 text-slate-400 text-sm">
+                              <span>📅</span>
+                              <span>{space.createdAt ? new Date(space.createdAt).toLocaleDateString('vi-VN') : 'N/A'}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-4">
+                            <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); loadRoomDetail(space); }} 
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors bg-red-500/20 text-red-400 hover:bg-red-500/30"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                Tham gia ngay
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
         </>
